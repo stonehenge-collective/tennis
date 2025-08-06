@@ -63,7 +63,6 @@ def validate_data(data, valid_players):
 
 def main():
     issue_body = os.getenv("ISSUE_BODY", "")
-    print(issue_body)
     issue_number = os.getenv("ISSUE_NUMBER")
     output_path = os.getenv("GITHUB_OUTPUT")
 
@@ -106,17 +105,15 @@ def main():
 
 
 if __name__ == "__main__":
-    body = """### Match date (YYYY-MM-DD)
-
-2025-08-05
-
-### Players (winner first, comma-separated @handles)
-
-@dev-jeb , @hunterjsb 
-
-### Sets (one line per set, winner’s games first)
-3-2
-4-2
-2-2"""
-
-    parsed_data = parse_issue_body(body)
+    main()
+    # body = """
+    # ### Match date (YYYY-MM-DD)
+    # 2025-08-05
+    # ### Players (winner first, comma-separated @handles)
+    # @dev-jeb , @hunterjsb
+    # ### Sets (one line per set, winner’s games first)
+    # 3-2
+    # 4-2
+    # 2-2
+    # """
+    # parsed_data = parse_issue_body(body)
