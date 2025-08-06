@@ -59,6 +59,7 @@ def validate_data(data, valid_players):
 
 def main():
     issue_body = os.getenv("ISSUE_BODY", "")
+    print(issue_body)
     issue_number = os.getenv("ISSUE_NUMBER")
     output_path = os.getenv("GITHUB_OUTPUT")
 
