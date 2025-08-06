@@ -1,6 +1,0 @@
-- name: new-match
-  color: "28a745"
-  description: "A new match recorded via the issue form."
-- name: ranking-update
-  color: "0366d6"
-  description: "Automated update to the rankings file."
