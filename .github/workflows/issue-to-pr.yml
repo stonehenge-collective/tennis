@@ -1,0 +1,98 @@
+name: "🎾 New Match: Issue to PR"
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  create-match-pr:
+    runs-on: ubuntu-latest
+    if: contains(github.event.issue.labels.*.name, 'new-match')
+
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Parse and Validate Issue
+        id: parse
+        run: python scripts/parse_issue.py
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+
+      - name: Handle Validation Failure
+        if: steps.parse.outputs.validation_failed == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issueNumber = ${{ github.event.issue.number }};
+            const errorMessage = `${{ steps.parse.outputs.error_message }}`;
+            const body = `Hi @${{ github.event.issue.user.login }}, thanks for submitting a match!\n\nOur bot encountered an issue parsing your submission:\n---\n${errorMessage}\n---\nPlease correct the issue by editing the original post. The bot will re-evaluate it automatically.`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: body
+            });
+            core.setFailed('Validation failed: ' + errorMessage);
+
+      - name: Create Match File
+        if: steps.parse.outputs.validation_failed == 'false'
+        run: |
+          mkdir -p matches
+          echo "${{ steps.parse.outputs.match_yaml }}" > matches/${{ steps.parse.outputs.date }}-${{ github.event.issue.number }}.yml
+
+      - name: Create Pull Request
+        if: steps.parse.outputs.validation_failed == 'false'
+        id: create-pr
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.TENNIS_BOT_PAT }}
+          commit-message: "feat(match): record match from issue #${{ github.event.issue.number }}"
+          title: "🎾 Match Data for Issue #${{ github.event.issue.number }}"
+          body: |
+            This PR was automatically generated from issue #${{ github.event.issue.number }}.
+
+            **Winner**: @${{ steps.parse.outputs.winner }}
+            **Loser**: @${{ steps.parse.outputs.loser }}
+
+            Please review the match data file and approve the PR to update the rankings.
+
+            Closes #${{ github.event.issue.number }}
+          branch: "match/issue-${{ github.event.issue.number }}"
+          delete-branch: true
+          reviewers: ${{ steps.parse.outputs.winner }},${{ steps.parse.outputs.loser }}
+          assignees: ${{ steps.parse.outputs.winner }},${{ steps.parse.outputs.loser }}
+          labels: new-match
+
+      - name: Comment on Issue with PR Link
+        if: steps.create-pr.outputs.pull-request-number
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issueNumber = ${{ github.event.issue.number }};
+            const prNumber = ${{ steps.create-pr.outputs.pull-request-number }};
+            const body = `Thanks for recording your match! A pull request has been created for it.\n\nPlease review and approve it here: #${prNumber}`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: body
+            });

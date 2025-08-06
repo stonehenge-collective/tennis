@@ -1,0 +1,33 @@
+name: "🎾  Record a match"
+description: "Log a finished match – winner first"
+labels: ["new-match"]
+body:
+  - type: input
+    id: date
+    attributes:
+      label: Match date (YYYY-MM-DD)
+      placeholder: "2025-08-05"
+    validations:
+      required: true
+      pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+  - type: textarea
+    id: players
+    attributes:
+      label: "Players (winner first, comma-separated @handles)"
+      placeholder: |
+        @alice, @bob
+    validations:
+      required: true
+  - type: textarea
+    id: sets
+    attributes:
+      label: "Sets (one line per set, winner’s games first)"
+      description: |
+        Enter as `<WinnerGames>-<LoserGames>`, e.g.
+        ```
+        6-3
+        4-6
+        10-8
+        ```
+    validations:
+      required: true

@@ -1,0 +1,52 @@
+name: "🏆 Rebuild Rankings"
+
+on:
+  push:
+    branches: [main]
+    paths: ['matches/**']
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install --quiet numpy pandas pyyaml
+
+      - name: Recompute ranking
+        run: python scripts/ranking.py > ranking.csv
+
+      - name: Check for changes
+        id: check_changes
+        run: |
+          if git diff --exit-code --quiet ranking.csv; then
+            echo "No changes to ranking.csv, skipping PR."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ranking.csv has changed, creating PR."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create Pull Request for Ranking Update
+        if: steps.check_changes.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.TENNIS_BOT_PAT }}
+          commit-message: "chore(ranking): update ranking.csv"
+          title: "🏆 chore(ranking): Automated ranking update"
+          body: |
+            The Elo rankings have been automatically updated based on new match results.
+          branch: auto/ranking-${{ github.run_id }}
+          delete-branch: true
+          labels: ranking-update
