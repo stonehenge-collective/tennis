@@ -42,7 +42,7 @@ jobs:
         if: steps.check_changes.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.TENNIS_BOT_PAT }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore(ranking): update ranking.csv"
           title: "🏆 chore(ranking): Automated ranking update"
           body: |
