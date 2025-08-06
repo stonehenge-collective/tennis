@@ -1,24 +1,41 @@
 import pandas as pd
+import os
 from datetime import datetime
+
+
+def get_repo_info():
+    """Extract repository owner and name from environment or git remote."""
+    # Try GitHub Actions environment variables first
+    github_repository = os.environ.get("GITHUB_REPOSITORY")
+    if github_repository:
+        owner, repo = github_repository.split("/")
+        return owner, repo
+
+    return "your-org", "your-repo"
+
 
 def build_leaderboard():
     """Generates a static HTML leaderboard from ranking.csv."""
     try:
-        df = pd.read_csv('ranking.csv')
+        df = pd.read_csv("ranking.csv")
     except FileNotFoundError:
         print("ranking.csv not found. Creating a default leaderboard.")
-        df = pd.DataFrame(columns=['player', 'rating'])
+        df = pd.DataFrame(columns=["player", "rating"])
 
     # Sort by rating, descending
-    df = df.sort_values(by='rating', ascending=False).reset_index(drop=True)
-    df.index += 1 # Start ranking from 1
+    df = df.sort_values(by="rating", ascending=False).reset_index(drop=True)
+    df.index += 1  # Start ranking from 1
     df.index.name = "Rank"
 
     # Generate the HTML table
-    html_table = df.to_html(index=True, classes='table table-striped table-hover')
+    html_table = df.to_html(index=True, classes="table table-striped table-hover")
 
     # Get the current timestamp
-    timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
+    timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+
+    # Get repository information for dynamic URLs
+    owner, repo = get_repo_info()
+    issues_url = f"https://github.com/{owner}/{repo}/issues/new?template=match.yml"
 
     # Basic HTML template
     html_template = f"""
@@ -53,7 +70,7 @@ def build_leaderboard():
             <div class="footer">
                 <p>Last updated: {timestamp}</p>
                 <p>
-                    <a href="https://github.com/your-org/your-repo/issues/new/choose">Record a new match</a>
+                    <a href="{issues_url}">Record a new match</a>
                 </p>
             </div>
         </div>
@@ -62,10 +79,11 @@ def build_leaderboard():
     """
 
     # Write the HTML to docs/index.html
-    with open('docs/index.html', 'w') as f:
+    with open("docs/index.html", "w") as f:
         f.write(html_template)
 
     print("Leaderboard successfully built at docs/index.html")
+
 
 if __name__ == "__main__":
     build_leaderboard()
