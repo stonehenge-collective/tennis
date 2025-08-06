@@ -62,7 +62,7 @@ jobs:
         id: create-pr
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.TENNIS_BOT_PAT }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "feat(match): record match from issue #${{ github.event.issue.number }}"
           title: "🎾 Match Data for Issue #${{ github.event.issue.number }}"
           body: |
