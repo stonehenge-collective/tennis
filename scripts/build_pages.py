@@ -1,11 +1,10 @@
 import pandas as pd
 import os
+import tempfile
 from datetime import datetime
 
 
 def get_repo_info():
-    """Extract repository owner and name from environment or git remote."""
-    # Try GitHub Actions environment variables first
     github_repository = os.environ.get("GITHUB_REPOSITORY")
     if github_repository:
         owner, repo = github_repository.split("/")
@@ -78,12 +77,20 @@ def build_leaderboard():
     </html>
     """
 
-    # Write the HTML to docs/index.html
-    with open("docs/index.html", "w") as f:
+    # Create a temporary directory and write the HTML
+    temp_dir = tempfile.mkdtemp(prefix="tennis_leaderboard_")
+    output_file = os.path.join(temp_dir, "index.html")
+
+    with open(output_file, "w") as f:
         f.write(html_template)
 
-    print("Leaderboard successfully built at docs/index.html")
+    return temp_dir, output_file
 
 
 if __name__ == "__main__":
-    build_leaderboard()
+    temp_dir, output_file = build_leaderboard()
+
+    # write to GitHub Actions environment if running in CI so that the pages-deploy.yml can use it
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        with open(os.environ.get("GITHUB_OUTPUT", "/dev/null"), "a") as f:
+            f.write(f"temp_dir={temp_dir}\n")
