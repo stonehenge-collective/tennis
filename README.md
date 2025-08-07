@@ -2,7 +2,7 @@
 
 This repository contains an automated system for tracking tennis matches and calculating player rankings using the Elo rating system. The entire process is managed through GitHub Issues and Actions, making it easy to use, especially on mobile devices.
 
-[**View the Live Leaderboard**](https://stonehenge-collective.github.io/sc-tennis-league)
+[**View the Live Leaderboard**](https://github-org-or-username.github.io/fork-of-this-repo)
 
 ## Initial Setup (For New Tennis Leagues)
 
@@ -88,5 +88,4 @@ That's it! No command line, no code, just a simple form.
 
 ## Ranking System
 
-Player rankings are calculated using the [Elo rating system](https://en.wikipedia.org/wiki/Elo_rating_system). After each match is merged, an automated workflow recalculates the ratings and creates a pull request with the updated `ranking.csv` file. Once that PR is merged, the [live leaderboard](https://stonehenge-collective.github.io/sc-tenis-league) is updated automatically.
-
+Player rankings are calculated using the [Elo rating system](https://en.wikipedia.org/wiki/Elo_rating_system). After each match is merged, an automated workflow recalculates the ratings and creates a pull request with the updated `ranking.csv` file. Once that PR is merged, the [live leaderboard](https://github-org-or-username.github.io/fork-of-this-repo) is updated automatically.
