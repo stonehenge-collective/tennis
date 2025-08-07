@@ -30,6 +30,7 @@ jobs:
         run: pip install pandas
 
       - name: Build static leaderboard page
+        id: build
         run: python scripts/build_pages.py
 
       - name: Setup Pages
@@ -38,7 +39,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './docs'
+          path: ${{ steps.build.outputs.temp_dir }}
 
       - name: Deploy to GitHub Pages
         id: deployment

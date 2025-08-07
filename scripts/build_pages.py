@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+import tempfile
 from datetime import datetime
 
 
@@ -78,12 +79,26 @@ def build_leaderboard():
     </html>
     """
 
-    # Write the HTML to docs/index.html
-    with open("docs/index.html", "w") as f:
+    # Create a temporary directory and write the HTML
+    temp_dir = tempfile.mkdtemp(prefix="tennis_leaderboard_")
+    output_file = os.path.join(temp_dir, "index.html")
+
+    with open(output_file, "w") as f:
         f.write(html_template)
 
-    print("Leaderboard successfully built at docs/index.html")
+    print(f"Leaderboard successfully built at {output_file}")
+    print(f"Temporary directory: {temp_dir}")
+
+    return temp_dir, output_file
 
 
 if __name__ == "__main__":
-    build_leaderboard()
+    temp_dir, output_file = build_leaderboard()
+
+    # Output for GitHub Actions to capture
+    print(f"TEMP_DIR={temp_dir}")
+
+    # Also write to GitHub Actions environment if running in CI
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        with open(os.environ.get("GITHUB_OUTPUT", "/dev/null"), "a") as f:
+            f.write(f"temp_dir={temp_dir}\n")
