@@ -1,0 +1,213 @@
+name: "🎾 Require Match Approval"
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  pull_request_review:
+    types: [submitted, dismissed]
+
+jobs:
+  check-match-approvals:
+    runs-on: ubuntu-latest
+    if: contains(github.event.pull_request.labels.*.name, 'new-match')
+
+    permissions:
+      contents: read
+      pull-requests: write
+      statuses: write
+
+    steps:
+      - name: Extract match players from PR
+        id: extract-players
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request?.number || context.payload.number
+            });
+
+            // Extract winner and loser from PR body
+            const bodyMatch = pr.body.match(/\*\*Winner\*\*: @(\w+)\s*\*\*Loser\*\*: @(\w+)/);
+            if (bodyMatch) {
+              const winner = bodyMatch[1];
+              const loser = bodyMatch[2];
+              console.log('Found players from PR body:', winner, loser);
+              return { winner, loser, players: [winner, loser] };
+            }
+
+            // Fallback to assignees if body parsing fails
+            const players = pr.assignees.map(a => a.login);
+            console.log('Fallback to assignees:', players);
+            return { players };
+
+      - name: Check approvals
+        id: check-approvals
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prNumber = context.payload.pull_request?.number || context.payload.number;
+            const players = ${{ steps.extract-players.outputs.result }}.players;
+
+            // Get all reviews for this PR
+            const { data: reviews } = await github.rest.pulls.listReviews({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+
+            // Get the latest review from each reviewer
+            const latestReviews = {};
+            reviews.forEach(review => {
+              if (!latestReviews[review.user.login] ||
+                  new Date(review.submitted_at) > new Date(latestReviews[review.user.login].submitted_at)) {
+                latestReviews[review.user.login] = review;
+              }
+            });
+
+            // Check which players have approved
+            const approvedPlayers = [];
+            const pendingPlayers = [];
+
+            players.forEach(player => {
+              const latestReview = latestReviews[player];
+              if (latestReview && latestReview.state === 'APPROVED') {
+                approvedPlayers.push(player);
+              } else {
+                pendingPlayers.push(player);
+              }
+            });
+
+            const allApproved = pendingPlayers.length === 0;
+
+            console.log('Approved players:', approvedPlayers);
+            console.log('Pending players:', pendingPlayers);
+            console.log('All approved:', allApproved);
+
+            return {
+              approvedPlayers,
+              pendingPlayers,
+              allApproved,
+              totalPlayers: players.length,
+              approvalCount: approvedPlayers.length
+            };
+
+      - name: Set status check
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const approval = ${{ steps.check-approvals.outputs.result }};
+            const prNumber = context.payload.pull_request?.number || context.payload.number;
+            const sha = context.payload.pull_request?.head?.sha || context.payload.after;
+
+            let state, description;
+
+            if (approval.allApproved) {
+              state = 'success';
+              description = `All ${approval.totalPlayers} players have approved this match ✅`;
+            } else {
+              state = 'pending';
+              description = `Match approval: ${approval.approvalCount}/${approval.totalPlayers} players approved. Waiting for: ${approval.pendingPlayers.join(', ')}`;
+            }
+
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: sha,
+              state: state,
+              target_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/pull/${prNumber}`,
+              description: description,
+              context: 'tennis/match-approval'
+            });
+
+      - name: Comment on PR for pending approvals
+        if: ${{ !fromJson(steps.check-approvals.outputs.result).allApproved }}
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const approval = ${{ steps.check-approvals.outputs.result }};
+            const prNumber = context.payload.pull_request?.number || context.payload.number;
+
+            if (approval.pendingPlayers.length === 0) return;
+
+            // Check if we already have a bot comment about approvals
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber
+            });
+
+            const existingComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('⚠️ **Match approval required**')
+            );
+
+            const commentBody = `⚠️ **Match approval required**
+
+This match requires approval from all participants before it can be merged.
+
+**Current Status:**
+${approval.approvedPlayers.map(player => `- @${player}: ✅ **Approved**`).join('\n')}
+${approval.pendingPlayers.map(player => `- @${player}: ⏳ **Approval needed**`).join('\n')}
+
+@${approval.pendingPlayers.join(' @')} - Please review this PR and click **"Approve"** to confirm the match results.
+
+> 💡 **Tip:** Click "Files changed" → "Review changes" → "Approve" → "Submit review"`;
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: commentBody
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: commentBody
+              });
+            }
+
+      - name: Celebrate when all approved
+        if: ${{ fromJson(steps.check-approvals.outputs.result).allApproved }}
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const approval = ${{ steps.check-approvals.outputs.result }};
+            const prNumber = context.payload.pull_request?.number || context.payload.number;
+
+            // Check if we need to update any existing approval comments
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber
+            });
+
+            const approvalComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('⚠️ **Match approval required**')
+            );
+
+            if (approvalComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: approvalComment.id,
+                body: `✅ **Match approved!**
+
+All players have approved this match and it's ready to be merged.
+
+**Final Status:**
+${approval.approvedPlayers.map(player => `- @${player}: ✅ **Approved**`).join('\n')}
+
+🎾 This match can now be merged to update the rankings!`
+              });
+            }

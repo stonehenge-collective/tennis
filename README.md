@@ -45,7 +45,23 @@ Create these labels in your repository (**Issues** → **Labels** → **New labe
 - **`new-match`** (color: #0E8A16) - Used by the issue template to trigger match processing
 - **`ranking-update`** (color: #0052CC) - Applied to automated ranking update pull requests
 
-### 4. Add Your Players
+### 4. Enable Branch Protection (Required for Match Approvals)
+
+To ensure all players must approve matches before they're recorded, set up branch protection:
+
+1. Go to your repository **Settings** → **Branches**
+2. Click **"Add branch protection rule"**
+3. Set the branch name pattern to `main` (or your default branch)
+4. Enable these settings:
+   - ✅ **"Require a pull request before merging"**
+   - ✅ **"Require approvals"** (set to **2** - one for each player)
+   - ✅ **"Dismiss stale PR approvals when new commits are pushed"**
+   - ✅ **"Require status checks to pass before merging"**
+   - ✅ **"Require branches to be up to date before merging"**
+
+This ensures that both players involved in any match must approve the pull request before the match can be officially recorded.
+
+### 5. Add Your Players
 
 Edit the `players.yml` file to include the GitHub usernames of all players in your league (you can delete the example players):
 
@@ -55,7 +71,7 @@ Edit the `players.yml` file to include the GitHub usernames of all players in yo
 - ...
 ```
 
-### 5. Update the README Links
+### 6. Update the README Links
 
 Update the live leaderboard link in this README to point to your deployment:
 
@@ -81,8 +97,8 @@ Follow these simple steps to record a match and have the rankings updated automa
     - **Players**: The GitHub handles of the two players, separated by a comma. **The winner must be listed first.** (e.g., `@winner, @loser`)
     - **Sets**: The score of each set, one per line. The winner's score must be listed first. (e.g., `6-3`)
 3. **Submit the Issue**: Click "Submit new issue".
-4. **Review and Approve the PR**: A bot will create a pull request (PR) with the match data. The two players involved will be requested to review it.
-5. **Merge the PR**: Once the PR is approved, it can be merged. The rankings will be automatically updated within a minute or two.
+4. **Review and Approve the PR**: A bot will create a pull request (PR) with the match data. **Both players involved must approve the PR before it can be merged.**
+5. **Merge the PR**: Once both players have approved the PR, it can be merged. The rankings will be automatically updated within a minute or two.
 
 That's it! No command line, no code, just a simple form.
 
