@@ -36,7 +36,7 @@ def parse_issue_body(body):
     return details
 
 
-def validate_data(data, valid_players):
+def validate_data(data):
     """Validates the parsed match data."""
     errors = []
     if not data.get("date"):
@@ -44,10 +44,6 @@ def validate_data(data, valid_players):
 
     if not data.get("players") or len(data["players"]) != 2:
         errors.append("Exactly two players must be specified, winner first (e.g., '@alice, @bob').")
-    else:
-        for player in data["players"]:
-            if player not in valid_players:
-                errors.append(f"Player '@{player}' is not in the official roster (`players.yml`).")
 
     if not data.get("sets"):
         errors.append("At least one set must be recorded in the 'Sets' section.")
@@ -70,15 +66,8 @@ def main():
         print("Error: Required environment variables not set.", file=sys.stderr)
         sys.exit(1)
 
-    try:
-        with open("players.yml") as f:
-            valid_players = yaml.safe_load(f)
-    except FileNotFoundError:
-        print("Error: `players.yml` not found.", file=sys.stderr)
-        sys.exit(1)
-
     parsed_data = parse_issue_body(issue_body)
-    errors = validate_data(parsed_data, valid_players)
+    errors = validate_data(parsed_data)
 
     with open(output_path, "a") as f:
         if errors:
