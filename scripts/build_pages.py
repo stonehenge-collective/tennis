@@ -5,8 +5,6 @@ from datetime import datetime
 
 
 def get_repo_info():
-    """Extract repository owner and name from environment or git remote."""
-    # Try GitHub Actions environment variables first
     github_repository = os.environ.get("GITHUB_REPOSITORY")
     if github_repository:
         owner, repo = github_repository.split("/")
@@ -86,19 +84,13 @@ def build_leaderboard():
     with open(output_file, "w") as f:
         f.write(html_template)
 
-    print(f"Leaderboard successfully built at {output_file}")
-    print(f"Temporary directory: {temp_dir}")
-
     return temp_dir, output_file
 
 
 if __name__ == "__main__":
     temp_dir, output_file = build_leaderboard()
 
-    # Output for GitHub Actions to capture
-    print(f"TEMP_DIR={temp_dir}")
-
-    # Also write to GitHub Actions environment if running in CI
+    # write to GitHub Actions environment if running in CI so that the pages-deploy.yml can use it
     if os.environ.get("GITHUB_ACTIONS") == "true":
         with open(os.environ.get("GITHUB_OUTPUT", "/dev/null"), "a") as f:
             f.write(f"temp_dir={temp_dir}\n")
