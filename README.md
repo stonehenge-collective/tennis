@@ -8,12 +8,21 @@ This repository contains an automated system for tracking tennis matches and cal
 
 If you're setting up this system for your own tennis league, follow these one-time configuration steps:
 
-### 1. Fork/Clone This Repository
+### 1. Fork This Repository
 
-- Fork this repository to your GitHub account or organization
-- Clone it locally to make the initial configuration changes
+- Click the **"Fork"** button at the top of this repository
+- Choose your GitHub account or organization as the destination
+- Keep the repository name as "tennis" or rename it for your league
 
 ### 2. Configure Repository Settings
+
+After forking, you'll need to configure several settings in your new repository:
+
+#### Enable Issues
+
+1. Go to your repository **Settings** → **General**
+2. Under "Features", check **"Issues"** to enable them
+3. Issues are disabled by default in forks but required for match recording
 
 #### Enable GitHub Actions to Create Pull Requests
 
@@ -21,7 +30,7 @@ If you're setting up this system for your own tennis league, follow these one-ti
 2. Under "Workflow permissions", select **"Read and write permissions"**
 3. Check **"Allow GitHub Actions to create and approve pull requests"**
 
-Note: If you cloned this under an organization, you need to enable the "Allow GitHub Actions to create and approve pull requests" option for the organization or else the organization's setting will override the repository setting.
+Note: If you forked this under an organization, you need to enable the "Allow GitHub Actions to create and approve pull requests" option for the organization or else the organization's setting will override the repository setting.
 
 #### Enable GitHub Pages
 
@@ -33,42 +42,33 @@ Note: If you cloned this under an organization, you need to enable the "Allow Gi
 
 Create these labels in your repository (**Issues** → **Labels** → **New label**):
 
-- **`new-match`** - Used by the issue template to trigger match processing
-- **`ranking-update`** - Applied to automated ranking update pull requests
+- **`new-match`** (color: #0E8A16) - Used by the issue template to trigger match processing
+- **`ranking-update`** (color: #0052CC) - Applied to automated ranking update pull requests
 
 ### 4. Add Your Players
 
-Edit the `players.yml` file to include the GitHub usernames of all players in your league:
+Edit the `players.yml` file to include the GitHub usernames of all players in your league (you can delete the example players):
 
 ```yaml
-- alice
-- bob
-- charlie
-- your-username
+- github-username-of-player-1
+- github-username-of-player-2
+- ...
 ```
 
-### 5. Reset Rankings and Match History
+### 5. Update the README Links
 
-Clear the existing rankings by editing `ranking.csv` to contain only the header:
+Update the live leaderboard link in this README to point to your deployment:
 
-```csv
-player,rating
-```
-
-Clear the existing match history by deleting the `matches` directory.
-
-### 6. Update the README links to point to deployed leaderboard
-
-Update the README links to point to the deployed leaderboard.
+For organizations:
 
 ```markdown
-[**View the Live Leaderboard**](https://your-org.github.io/your-repo/)
+[**View the Live Leaderboard**](https://your-org.github.io/fork-of-this-repo)
 ```
 
-if this is not under an organization, you will use your username instead of the organization name.
+For personal accounts:
 
 ```markdown
-[**View the Live Leaderboard**](https://your-username.github.io/tennis)
+[**View the Live Leaderboard**](https://your-username.github.io/fork-of-this-repo)
 ```
 
 ## How to Record a Match
@@ -89,3 +89,4 @@ That's it! No command line, no code, just a simple form.
 ## Ranking System
 
 Player rankings are calculated using the [Elo rating system](https://en.wikipedia.org/wiki/Elo_rating_system). After each match is merged, an automated workflow recalculates the ratings and creates a pull request with the updated `ranking.csv` file. Once that PR is merged, the [live leaderboard](https://stonehenge-collective.github.io/sc-tenis-league) is updated automatically.
+
