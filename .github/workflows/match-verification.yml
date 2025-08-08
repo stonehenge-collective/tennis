@@ -24,7 +24,6 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const core = require('@actions/core');
             const {owner, repo} = context.repo;
             let prNumber = undefined;
             if (context.payload.pull_request) prNumber = context.payload.pull_request.number;
