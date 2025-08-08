@@ -57,18 +57,6 @@ def gh_post(url: str, token: str, body: Dict) -> requests.Response:
     return resp
 
 
-def is_collaborator(owner: str, repo: str, username: str, token: str) -> bool:
-    url = f"{GITHUB_API}/repos/{owner}/{repo}/collaborators/{username}"
-    resp = gh_get(url, token)
-    if resp.status_code == 204:
-        return True
-    if resp.status_code == 404:
-        return False
-    # For non-204/404, assume not collaborator but log
-    print(f"Warn: collaborator check for {username} -> {resp.status_code} {resp.text}")
-    return False
-
-
 def list_pr_reviews(owner: str, repo: str, pr_number: int, token: str) -> List[Dict]:
     url = f"{GITHUB_API}/repos/{owner}/{repo}/pulls/{pr_number}/reviews"
     resp = gh_get(url, token)
@@ -76,25 +64,6 @@ def list_pr_reviews(owner: str, repo: str, pr_number: int, token: str) -> List[D
         print(f"Error fetching reviews: {resp.status_code} {resp.text}", file=sys.stderr)
         sys.exit(1)
     return resp.json()
-
-
-def list_issue_comments(owner: str, repo: str, issue_number: int, token: str) -> List[Dict]:
-    url = f"{GITHUB_API}/repos/{owner}/{repo}/issues/{issue_number}/comments"
-    resp = gh_get(url, token)
-    if resp.status_code != 200:
-        print(f"Error fetching comments: {resp.status_code} {resp.text}", file=sys.stderr)
-        sys.exit(1)
-    return resp.json()
-
-
-def comment_once(owner: str, repo: str, issue_number: int, token: str, body_text: str, dedupe_hint: str) -> None:
-    comments = list_issue_comments(owner, repo, issue_number, token)
-    if any(dedupe_hint in (c.get("body") or "") for c in comments):
-        return
-    url = f"{GITHUB_API}/repos/{owner}/{repo}/issues/{issue_number}/comments"
-    resp = gh_post(url, token, {"body": body_text})
-    if resp.status_code not in (200, 201):
-        print(f"Warn: failed to post comment: {resp.status_code} {resp.text}")
 
 
 def get_pr(owner: str, repo: str, pr_number: int, token: str) -> Dict:
@@ -123,32 +92,13 @@ def main() -> None:
 
     pr = get_pr(owner, repo, pr_number, token)
     head_sha = pr.get("head", {}).get("sha")
-    assignees = [a.get("login", "").lower() for a in pr.get("assignees", []) if a.get("login")]
-
-    if not assignees:
-        print("No assignees found on PR. Assign both players to enable verification.", file=sys.stderr)
-        sys.exit(1)
-
-    collaborators: List[str] = []
-    non_collaborators: List[str] = []
-    for login in assignees:
-        if is_collaborator(owner, repo, login, token):
-            collaborators.append(login)
-        else:
-            non_collaborators.append(login)
-
-    if non_collaborators:
-        guidance_hint = "cannot leave Approve reviews"
-        guidance = (
-            f"Heads up: {', '.join('@' + u for u in non_collaborators)} {guidance_hint} because they are not collaborators. "
-            "Please add them as collaborators for future matches. For this PR, only approvals from existing collaborators are required."
-        )
-        comment_once(owner, repo, pr_number, token, guidance, dedupe_hint=guidance_hint)
-
-    required_approvers = collaborators
+    # Use requested reviewers as the required approvers (these are collaborators-only,
+    # added by the request_reviews step). If empty, fail with guidance.
+    requested_reviewers = [u.get("login", "").lower() for u in pr.get("requested_reviewers", []) if u.get("login")]
+    required_approvers = requested_reviewers
     if not required_approvers:
         print(
-            "None of the assignees are collaborators. Add at least one collaborator to approve this PR.",
+            "No requested reviewers found. Ensure at least one collaborator is requested as a reviewer.",
             file=sys.stderr,
         )
         sys.exit(1)

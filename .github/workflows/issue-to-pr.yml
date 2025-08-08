@@ -76,9 +76,18 @@ jobs:
             Closes #${{ github.event.issue.number }}
           branch: "match/issue-${{ github.event.issue.number }}"
           delete-branch: true
-          reviewers: ${{ steps.parse.outputs.winner }},${{ steps.parse.outputs.loser }}
           assignees: ${{ steps.parse.outputs.winner }},${{ steps.parse.outputs.loser }}
           labels: new-match
+
+      - name: Request reviews from collaborators only
+        if: steps.create-pr.outputs.pull-request-number
+        run: |
+          python scripts/request_reviews.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.create-pr.outputs.pull-request-number }}
+          WINNER: ${{ steps.parse.outputs.winner }}
+          LOSER: ${{ steps.parse.outputs.loser }}
 
       - name: Comment on Issue with PR Link
         if: steps.create-pr.outputs.pull-request-number
