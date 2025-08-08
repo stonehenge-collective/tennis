@@ -118,4 +118,4 @@ if __name__ == "__main__":
     temp_dir, output_file = build_leaderboard()
     if os.environ.get("GITHUB_ACTIONS") == "true":
         with open(os.environ.get("GITHUB_OUTPUT", "/dev/null"), "a") as f:
-            f.write(f"temp_dir={temp_dir}\\n")
+            f.write(f"temp_dir={temp_dir}")
