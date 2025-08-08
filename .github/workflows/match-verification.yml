@@ -3,8 +3,6 @@ name: "✅ Match verification"
 on:
   pull_request_review:
     types: [submitted, edited, dismissed]
-  issue_comment:
-    types: [created, edited]
 
 permissions:
   contents: read
