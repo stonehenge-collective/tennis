@@ -76,7 +76,6 @@ jobs:
             Closes #${{ github.event.issue.number }}
           branch: "match/issue-${{ github.event.issue.number }}"
           delete-branch: true
-          assignees: ${{ steps.parse.outputs.winner }},${{ steps.parse.outputs.loser }}
           labels: new-match
 
       - name: Request reviews from collaborators only
