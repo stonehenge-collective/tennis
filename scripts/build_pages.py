@@ -5,40 +5,77 @@ from datetime import datetime
 
 
 def get_repo_info():
-    """Extract repository owner and name from environment or git remote."""
-    # Try GitHub Actions environment variables first
     github_repository = os.environ.get("GITHUB_REPOSITORY")
     if github_repository:
         owner, repo = github_repository.split("/")
         return owner, repo
-
     return "your-org", "your-repo"
+
+
+def format_rank_change(change):
+    if change > 0:
+        return f"▲ {change}"
+    elif change < 0:
+        return f"▼ {abs(change)}"
+    else:
+        return "–"
 
 
 def build_leaderboard():
     """Generates a static HTML leaderboard from ranking.csv."""
     try:
         df = pd.read_csv("ranking.csv")
-    except FileNotFoundError:
-        print("ranking.csv not found. Creating a default leaderboard.")
-        df = pd.DataFrame(columns=["player", "rating"])
+    except (FileNotFoundError, pd.errors.EmptyDataError):
+        print("ranking.csv not found or is empty. Creating a default leaderboard.")
+        df = pd.DataFrame(columns=["player", "rating", "wins", "losses", "rank_change"])
+
+    # Ensure all required columns exist, even if the CSV is old
+    for col in ["wins", "losses", "rank_change"]:
+        if col not in df.columns:
+            df[col] = 0
 
     # Sort by rating, descending
     df = df.sort_values(by="rating", ascending=False).reset_index(drop=True)
-    df.index += 1  # Start ranking from 1
+    df.index += 1
     df.index.name = "Rank"
 
-    # Generate the HTML table
-    html_table = df.to_html(index=True, classes="table table-striped table-hover")
+    # Generate the HTML table rows
+    table_rows = ""
+    for rank, row in df.iterrows():
+        player_link = f'<a href="https://github.com/{row["player"]}">{row["player"]}</a>'
+        record = f'{int(row["wins"])}-{int(row["losses"])}'
+        rank_change = format_rank_change(int(row["rank_change"]))
+        table_rows += f"""
+        <tr>
+            <td>{rank}</td>
+            <td>{player_link}</td>
+            <td>{int(row["rating"])}</td>
+            <td>{record}</td>
+            <td>{rank_change}</td>
+        </tr>
+        """
 
-    # Get the current timestamp
+    html_table = f"""
+    <table class="table table-striped table-hover">
+        <thead>
+            <tr>
+                <th>Rank</th>
+                <th>Player</th>
+                <th>Rating</th>
+                <th>Record</th>
+                <th>Change</th>
+            </tr>
+        </thead>
+        <tbody>
+            {table_rows}
+        </tbody>
+    </table>
+    """
+
     timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
-
-    # Get repository information for dynamic URLs
     owner, repo = get_repo_info()
     issues_url = f"https://github.com/{owner}/{repo}/issues/new?template=match.yml"
 
-    # Basic HTML template
     html_template = f"""
     <!DOCTYPE html>
     <html lang="en">
@@ -48,20 +85,11 @@ def build_leaderboard():
         <title>Tennis Leaderboard</title>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
         <style>
-            body {{
-                padding: 2rem;
-            }}
-            .container {{
-                max-width: 800px;
-            }}
-            h1 {{
-                margin-bottom: 1.5rem;
-            }}
-            .footer {{
-                margin-top: 2rem;
-                font-size: 0.8rem;
-                color: #6c757d;
-            }}
+            body {{ padding: 2rem; }}
+            .container {{ max-width: 800px; }}
+            h1 {{ margin-bottom: 1.5rem; }}
+            .footer {{ margin-top: 2rem; font-size: 0.8rem; color: #6c757d; }}
+            td:nth-child(5) {{ text-align: center; }}
         </style>
     </head>
     <body>
@@ -70,35 +98,24 @@ def build_leaderboard():
             {html_table}
             <div class="footer">
                 <p>Last updated: {timestamp}</p>
-                <p>
-                    <a href="{issues_url}">Record a new match</a>
-                </p>
+                <p><a href="{issues_url}">Record a new match</a></p>
             </div>
         </div>
     </body>
     </html>
     """
 
-    # Create a temporary directory and write the HTML
     temp_dir = tempfile.mkdtemp(prefix="tennis_leaderboard_")
     output_file = os.path.join(temp_dir, "index.html")
 
     with open(output_file, "w") as f:
         f.write(html_template)
 
-    print(f"Leaderboard successfully built at {output_file}")
-    print(f"Temporary directory: {temp_dir}")
-
     return temp_dir, output_file
 
 
 if __name__ == "__main__":
     temp_dir, output_file = build_leaderboard()
-
-    # Output for GitHub Actions to capture
-    print(f"TEMP_DIR={temp_dir}")
-
-    # Also write to GitHub Actions environment if running in CI
     if os.environ.get("GITHUB_ACTIONS") == "true":
         with open(os.environ.get("GITHUB_OUTPUT", "/dev/null"), "a") as f:
-            f.write(f"temp_dir={temp_dir}\n")
+            f.write(f"temp_dir={temp_dir}")
