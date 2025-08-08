@@ -1,0 +1,41 @@
+name: "✅ Match verification"
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review, review_requested, review_request_removed]
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+  issue_comment:
+    types: [created, edited]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  match-verification:
+    name: match-verification
+    runs-on: ubuntu-latest
+    if: >
+      ${{ github.event_name == 'pull_request' ||
+          github.event_name == 'pull_request_review' ||
+          (github.event_name == 'issue_comment' && github.event.issue.pull_request) }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Evaluate dual-approval status
+        run: python scripts/verify_match.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
