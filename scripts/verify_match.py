@@ -29,7 +29,7 @@ def get_repo_owner_and_name() -> Tuple[str, str]:
 
 
 def get_token() -> str:
-    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GITHUB_BEARER_TOKEN")
     if not token:
         print("GITHUB_TOKEN is not available", file=sys.stderr)
         sys.exit(1)
@@ -92,39 +92,60 @@ def main() -> None:
 
     pr = get_pr(owner, repo, pr_number, token)
     head_sha = pr.get("head", {}).get("sha")
-    # Use requested reviewers as the required approvers (these are collaborators-only,
-    # added by the request_reviews step). If empty, fail with guidance.
+
+    reviews = list_pr_reviews(owner, repo, pr_number, token)
+    # Build latest review per user on the head commit
+    latest_review_by_user: Dict[str, Dict] = {}
+    for r in reviews:
+        user_login = (r.get("user") or {}).get("login", "").lower()
+        commit_id = r.get("commit_id")
+        submitted_at = r.get("submitted_at") or ""
+        if commit_id != head_sha or not user_login:
+            continue
+        previous = latest_review_by_user.get(user_login)
+        if not previous:
+            latest_review_by_user[user_login] = r
+            continue
+        prev_time = (previous.get("submitted_at") or "").replace("Z", "+00:00")
+        curr_time = submitted_at.replace("Z", "+00:00")
+        try:
+            if datetime.fromisoformat(curr_time) > datetime.fromisoformat(prev_time):
+                latest_review_by_user[user_login] = r
+        except ValueError:
+            # Fallback: if parsing fails, keep existing
+            pass
+
     requested_reviewers = [u.get("login", "").lower() for u in pr.get("requested_reviewers", []) if u.get("login")]
-    required_approvers = requested_reviewers
-    if not required_approvers:
+
+    if requested_reviewers:
+        # Require each requested reviewer to have APPROVED on the latest commit
+        missing_or_unapproved: List[str] = []
+        for login in requested_reviewers:
+            latest = latest_review_by_user.get(login)
+            if not latest or latest.get("state") != "APPROVED":
+                missing_or_unapproved.append(login)
+        if missing_or_unapproved:
+            print(
+                "Missing required approvals from: " + ", ".join("@" + u for u in missing_or_unapproved),
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        print("All requested reviewers have approved on the latest commit.")
+        return
+
+    # If there are no requested reviewers, they have submitted reviews.
+    # Require that all latest reviews on head commit are APPROVED.
+    non_approved = [u for u, r in latest_review_by_user.items() if r.get("state") != "APPROVED"]
+    if non_approved:
         print(
-            "No requested reviewers found. Ensure at least one collaborator is requested as a reviewer.",
+            "Reviewers present but not APPROVED: " + ", ".join("@" + u for u in non_approved),
             file=sys.stderr,
         )
         sys.exit(1)
-
-    reviews = list_pr_reviews(owner, repo, pr_number, token)
-    latest_approvals: Dict[str, str] = {}
-    for r in reviews:
-        user_login = (r.get("user") or {}).get("login", "").lower()
-        state = r.get("state")
-        commit_id = r.get("commit_id")
-        submitted_at = r.get("submitted_at")
-        if state == "APPROVED" and commit_id == head_sha and user_login in required_approvers:
-            prev = latest_approvals.get(user_login)
-            if not prev or datetime.fromisoformat(submitted_at.replace("Z", "+00:00")) > datetime.fromisoformat(
-                prev.replace("Z", "+00:00")
-            ):
-                latest_approvals[user_login] = submitted_at
-
-    approved_users = set(latest_approvals.keys())
-    missing = [u for u in required_approvers if u not in approved_users]
-
-    if missing:
-        print("Missing required approvals from: " + ", ".join("@" + u for u in missing), file=sys.stderr)
+    if not latest_review_by_user:
+        print("No reviews found on the latest commit.", file=sys.stderr)
         sys.exit(1)
-
-    print("All required approvals received on the latest commit.")
+    print("All reviewers are in APPROVED state on the latest commit.")
 
 
 if __name__ == "__main__":
