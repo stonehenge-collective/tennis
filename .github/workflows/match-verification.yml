@@ -18,8 +18,7 @@ jobs:
     name: match-verification
     runs-on: ubuntu-latest
     if: >
-      ${{ github.event_name == 'pull_request' ||
-          github.event_name == 'pull_request_review' ||
+      ${{ github.event_name == 'pull_request_review' ||
           (github.event_name == 'issue_comment' && github.event.issue.pull_request) }}
 
     steps:
