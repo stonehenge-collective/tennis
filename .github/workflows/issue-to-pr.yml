@@ -74,7 +74,7 @@ jobs:
             Please review the match data file and approve the PR to update the rankings.
 
             Closes #${{ github.event.issue.number }}
-          branch: "matc/issue-${{ github.event.issue.number }}"
+          branch: "match/issue-${{ github.event.issue.number }}"
           delete-branch: true
           labels: new-match
 
