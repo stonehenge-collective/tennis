@@ -77,16 +77,16 @@ For personal accounts:
 
 Follow these simple steps to record a match and have the rankings updated automatically.
 
-1. **Open the Issue Form**: Go to the "Issues" tab of this repository and click on the **"🎾 Record a match"** button.
+1. **Open the Issue Form**: Go to the "Issues" tab of this repository, click the **"New issue"** button, and select **"🎾 Record a match"** from the template.
 2. **Fill in the Details**:
+    - **Title**: Do what you will.
     - **Match date**: The date the match was played (in YYYY-MM-DD format).
     - **Players**: The GitHub handles of the two players, separated by a comma. **The winner must be listed first.** (e.g., `@winner, @loser`)
     - **Sets**: The score of each set, one per line. The winner's score must be listed first. (e.g., `6-3`)
 3. **Submit the Issue**: Click "Submit new issue".
-4. **Review and Approve the PR**: A bot will create a pull request (PR) with the match data. The two players involved will be requested to review it.
-5. **Merge the PR**: Once the PR is approved, it can be merged. The rankings will be automatically updated within a minute or two.
-
-That's it! No command line, no code, just a simple form.
+4. **Review and Approve the PR**: A bot will create a pull request (PR) with the match data and link to this PR from the issue. The two players involved will be requested to review it.
+5. **Merge the PR**: Once the PR is approved, it can be merged. On merge an action will be triggered that will update the rankings.csv file.
+6. **Merge the PR**: Another PR will be opened that will update the rankings.csv file. You will need to merge this PR as well. Upon merge the leaderboard will be updated.
 
 ## Ranking System
 
