@@ -1,5 +1,7 @@
 # Tennis Match Tracker
 
+[![leaderboard](https://github.com/stonehenge-collective/tennis/actions/workflows/pages-deploy.yml/badge.svg)](https://github.com/stonehenge-collective/tennis/actions/workflows/pages-deploy.yml)
+
 This repository contains an automated system for tracking tennis matches and calculating player rankings using the Elo rating system. The entire process is managed through GitHub Issues and Actions, making it easy to use, especially on mobile devices.
 
 [**View the Live Leaderboard**](https://stonehenge-collective.github.io/sc-tennis-league)
