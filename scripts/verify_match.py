@@ -75,6 +75,15 @@ def get_pr(owner: str, repo: str, pr_number: int, token: str) -> Dict:
     return resp.json()
 
 
+def get_issue(owner: str, repo: str, issue_number: int, token: str) -> Dict:
+    url = f"{GITHUB_API}/repos/{owner}/{repo}/issues/{issue_number}"
+    resp = gh_get(url, token)
+    if resp.status_code != 200:
+        print(f"Error fetching Issue: {resp.status_code} {resp.text}", file=sys.stderr)
+        sys.exit(1)
+    return resp.json()
+
+
 def resolve_pr_number(event: Dict) -> int:
     if "pull_request" in event and isinstance(event["pull_request"], dict):
         return int(event["pull_request"]["number"])
@@ -92,6 +101,14 @@ def main() -> None:
 
     pr = get_pr(owner, repo, pr_number, token)
     head_sha = pr.get("head", {}).get("sha")
+    # Early exit unless PR has label 'new-match'
+    labels = [(l.get("name") or "").lower() for l in pr.get("labels", [])]
+    if not labels:
+        issue = get_issue(owner, repo, pr_number, token)
+        labels = [(l.get("name") or "").lower() for l in issue.get("labels", [])]
+    if "new-match" not in labels:
+        print("Skipping verification: 'new-match' label not present.")
+        sys.exit(0)
 
     reviews = list_pr_reviews(owner, repo, pr_number, token)
     # Build latest review per user on the head commit
