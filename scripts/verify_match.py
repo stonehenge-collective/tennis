@@ -101,14 +101,6 @@ def main() -> None:
 
     pr = get_pr(owner, repo, pr_number, token)
     head_sha = pr.get("head", {}).get("sha")
-    # Early exit unless PR has label 'new-match'
-    labels = [(l.get("name") or "").lower() for l in pr.get("labels", [])]
-    if not labels:
-        issue = get_issue(owner, repo, pr_number, token)
-        labels = [(l.get("name") or "").lower() for l in issue.get("labels", [])]
-    if "new-match" not in labels:
-        print("Skipping verification: 'new-match' label not present.")
-        sys.exit(0)
 
     reviews = list_pr_reviews(owner, repo, pr_number, token)
     # Build latest review per user on the head commit
