@@ -4,74 +4,7 @@
 
 This repository contains an automated system for tracking tennis matches and calculating player rankings using the Elo rating system. The entire process is managed through GitHub Issues and Actions, making it easy to use, especially on mobile devices.
 
-[**View the Live Leaderboard**](https://github-org-or-username.github.io/fork-of-this-repo)
-
-## Initial Setup (For New Tennis Leagues)
-
-If you're setting up this system for your own tennis league, follow these one-time configuration steps:
-
-### 1. Fork This Repository
-
-- Click the **"Fork"** button at the top of this repository
-- Choose your GitHub account or organization as the destination
-- Keep the repository name as "tennis" or rename it for your league
-
-### 2. Configure Repository Settings
-
-After forking, you'll need to configure several settings in your new repository:
-
-#### Enable Issues
-
-1. Go to your repository **Settings** → **General**
-2. Under "Features", check **"Issues"** to enable them
-3. Issues are disabled by default in forks but required for match recording
-
-#### Enable GitHub Actions to Create Pull Requests
-
-1. Go to your repository **Settings** → **Actions** → **General**
-2. Under "Workflow permissions", select **"Read and write permissions"**
-3. Check **"Allow GitHub Actions to create and approve pull requests"**
-
-Note: If you forked this under an organization, you need to enable the "Allow GitHub Actions to create and approve pull requests" option for the organization or else the organization's setting will override the repository setting.
-
-#### Enable GitHub Pages
-
-1. Go to your repository **Settings** → **Pages**
-2. Under "Source", select **"GitHub Actions"**
-3. This allows the automated workflows to deploy your leaderboard
-
-### 3. Create Required Labels
-
-Create these labels in your repository (**Issues** → **Labels** → **New label**):
-
-- **`new-match`** (color: #0E8A16) - Used by the issue template to trigger match processing
-- **`ranking-update`** (color: #0052CC) - Applied to automated ranking update pull requests
-
-### 4. Add Your Players
-
-Edit the `players.yml` file to include the GitHub usernames of all players in your league (you can delete the example players):
-
-```yaml
-- github-username-of-player-1
-- github-username-of-player-2
-- ...
-```
-
-### 5. Update the README Links
-
-Update the live leaderboard link in this README to point to your deployment:
-
-For organizations:
-
-```markdown
-[**View the Live Leaderboard**](https://your-org.github.io/fork-of-this-repo)
-```
-
-For personal accounts:
-
-```markdown
-[**View the Live Leaderboard**](https://your-username.github.io/fork-of-this-repo)
-```
+[**View the Live Leaderboard**](https://stonehenge-collective.github.io/sc-tennis-league)
 
 ## How to Record a Match
 
