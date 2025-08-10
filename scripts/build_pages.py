@@ -7,7 +7,7 @@ from collections import defaultdict
 
 """
 This page builder now relies solely on `ranking.csv` for all aggregates
-(rating, set and game records, and rank change). It no longer parses
+(rating, set and game records). It no longer parses
 match files. This avoids duplication of logic with `scripts/ranking.py`.
 """
 
