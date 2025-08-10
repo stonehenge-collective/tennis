@@ -1,1 +1,3 @@
-player,rating,wins,losses,rank_change
+player,rating,set_wins,set_losses,game_wins,game_losses
+dev-jeb,1216.0,2,1,15,12
+blah,1184.0,1,2,12,15
