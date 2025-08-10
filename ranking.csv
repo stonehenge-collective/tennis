@@ -1,4 +1,4 @@
-player,rating,wins,losses,rank_change
+player,rating,set_wins,set_losses,game_wins,game_losses
 Johnor12,1230.5,2,0,0
 dev-jeb,1216.0,1,0,0
 Gnick21,1184.0,0,1,0

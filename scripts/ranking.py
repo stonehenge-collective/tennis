@@ -6,16 +6,36 @@ import numpy as np
 
 K = 32
 ratings = {}
-stats = {}  # To store player stats (wins, losses)
+# Stats per player. We'll compute:
+# - set_wins/set_losses: count of sets won/lost
+# - game_wins/game_losses: total games won/lost across all recorded sets
+# - wins/losses: kept for backward compatibility (mirror set stats)
+stats = {}
 
 
 def expected(rA, rB):
     return 1 / (1 + 10 ** ((rB - rA) / 400))
 
 
+def _ensure_player(player: str) -> None:
+    if player not in stats:
+        stats[player] = {
+            "set_wins": 0,
+            "set_losses": 0,
+            "game_wins": 0,
+            "game_losses": 0,
+        }
+
+
 def apply_match(match):
-    """Updates ratings and stats based on a single match."""
+    """Updates ratings and aggregates based on a single match file.
+
+    Ratings are updated once per match (unchanged ordering). Set and game
+    aggregates are computed by iterating each recorded set.
+    """
     winner, loser = match["players"]
+
+    # Ratings (keep existing behavior)
     rW = ratings.get(winner, 1200)
     rL = ratings.get(loser, 1200)
     eW = expected(rW, rL)
@@ -23,28 +43,48 @@ def apply_match(match):
     ratings[winner] = rW + K * (1 - eW)
     ratings[loser] = rL + K * (0 - eL)
 
-    # Update stats
-    for player in [winner, loser]:
-        if player not in stats:
-            stats[player] = {"wins": 0, "losses": 0}
-    stats[winner]["wins"] += 1
-    stats[loser]["losses"] += 1
+    # Ensure player entries exist
+    _ensure_player(winner)
+    _ensure_player(loser)
+
+    # Compute per-set and per-game aggregates
+    sets = match.get("sets") or []
+    for s in sets:
+        # By convention: s[0] is match winner's games for the set, s[1] is match loser's
+        try:
+            w_games = int(s[0])
+            l_games = int(s[1])
+        except (ValueError, TypeError, IndexError):
+            # Skip malformed set entries
+            continue
+
+        # Game aggregates
+        stats[winner]["game_wins"] += w_games
+        stats[winner]["game_losses"] += l_games
+        stats[loser]["game_wins"] += l_games
+        stats[loser]["game_losses"] += w_games
+
+        # Set winner/loser determination
+        if w_games > l_games:
+            stats[winner]["set_wins"] += 1
+            stats[loser]["set_losses"] += 1
+        elif l_games > w_games:
+            stats[loser]["set_wins"] += 1
+            stats[winner]["set_losses"] += 1
+        # If equal, ignore; ties should not occur in valid tennis set scores
 
 
 def main():
     """Main function to calculate and print rankings."""
-    # Load existing rankings to get old rank and historical stats
+    # Load existing rankings to bootstrap current ratings
     try:
         old_df = pd.read_csv("ranking.csv")
-        # Sort by rating to establish rank
         old_df = old_df.sort_values(by="rating", ascending=False).reset_index(drop=True)
-        old_ranks = {row["player"]: i + 1 for i, row in old_df.iterrows()}
         for _, row in old_df.iterrows():
             player = row["player"]
             ratings[player] = row["rating"]
-            stats[player] = {"wins": row.get("wins", 0), "losses": row.get("losses", 0)}
     except (FileNotFoundError, pd.errors.EmptyDataError):
-        old_ranks = {}
+        pass
 
     # Process matches
     for fn in sorted(glob.glob("matches/*.yml")):
@@ -59,36 +99,60 @@ def main():
     # Create new DataFrame with updated ratings and stats
     new_players_data = []
     for p, r in sorted(ratings.items(), key=lambda item: -item[1]):
-        player_stats = stats.get(p, {"wins": 0, "losses": 0})
+        player_stats = stats.get(
+            p,
+            {
+                "set_wins": 0,
+                "set_losses": 0,
+                "game_wins": 0,
+                "game_losses": 0,
+            },
+        )
         new_players_data.append(
             {
                 "player": p,
                 "rating": round(r, 1),
-                "wins": player_stats["wins"],
-                "losses": player_stats["losses"],
+                # Primary stats
+                "set_wins": player_stats["set_wins"],
+                "set_losses": player_stats["set_losses"],
+                "game_wins": player_stats["game_wins"],
+                "game_losses": player_stats["game_losses"],
             }
         )
 
     if not new_players_data:
         # Handle case with no players
-        df = pd.DataFrame(columns=["player", "rating", "wins", "losses", "rank_change"])
+        df = pd.DataFrame(
+            columns=[
+                "player",
+                "rating",
+                "set_wins",
+                "set_losses",
+                "game_wins",
+                "game_losses",
+            ]
+        )
         df.to_csv(sys.stdout, index=False)
         return
 
     df = pd.DataFrame(new_players_data)
-    df["new_rank"] = df.index + 1
-
-    # Calculate rank change
-    def get_rank_change(row):
-        old_rank = old_ranks.get(row["player"])
-        if old_rank is None:
-            return 0  # New player
-        return old_rank - row["new_rank"]
-
-    df["rank_change"] = df.apply(get_rank_change, axis=1)
+    df = df.sort_values(by="rating", ascending=False).reset_index(drop=True)
 
     # Select and order columns for the output
-    output_df = df[["player", "rating", "wins", "losses", "rank_change"]]
+    desired_columns = [
+        "player",
+        "rating",
+        "set_wins",
+        "set_losses",
+        "game_wins",
+        "game_losses",
+    ]
+
+    # Ensure all desired columns exist (defensive in case of missing keys)
+    for col in desired_columns:
+        if col not in df.columns:
+            df[col] = 0
+    output_df = df[desired_columns]
 
     output_df.to_csv(sys.stdout, index=False)
 
