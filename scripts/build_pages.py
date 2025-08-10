@@ -4,6 +4,7 @@ import tempfile
 from datetime import datetime
 from collections import defaultdict
 
+
 """
 This page builder now relies solely on `ranking.csv` for all aggregates
 (rating, set and game records). It no longer parses
@@ -43,9 +44,6 @@ def build_leaderboard():
     df = df.sort_values(by="rating", ascending=False).reset_index(drop=True)
     df.index += 1
     df.index.name = "Rank"
-
-    # Calculate game records
-    game_records = calculate_game_records()
 
     # Generate the HTML table rows
     table_rows = ""
