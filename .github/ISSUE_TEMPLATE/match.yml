@@ -15,7 +15,7 @@ body:
     attributes:
       label: "Players (player1, player2)"
       placeholder: |
-        @alice, @bob
+        @github_handle1, @github_handle2
     validations:
       required: true
   - type: textarea
