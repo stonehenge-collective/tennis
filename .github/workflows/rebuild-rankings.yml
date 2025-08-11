@@ -19,13 +19,13 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.12'
 
       - name: Install dependencies
         run: pip install -r requirements.txt
 
       - name: Recompute ranking
-        run: python scripts/ranking.py > ranking.csv
+        run: python -m scripts.ranking > ranking.csv
 
       - name: Check for changes
         id: check_changes

@@ -1,8 +1,8 @@
 import pandas as pd
 import os
 import tempfile
-from datetime import datetime
-from collections import defaultdict
+from datetime import datetime, timezone
+from github_utils import get_repo_owner_and_name_or_default
 
 
 """
@@ -13,20 +13,13 @@ match files. This avoids duplication of logic with `scripts/ranking.py`.
 
 
 def get_repo_info():
-    github_repository = os.environ.get("GITHUB_REPOSITORY")
-    if github_repository:
-        owner, repo = github_repository.split("/")
-        return owner, repo
-    return "your-org", "your-repo"
+    # Use shared helper for consistent behavior (with defaults locally)
+    return get_repo_owner_and_name_or_default()
 
 
 def build_leaderboard():
     """Generates a static HTML leaderboard from ranking.csv."""
-    try:
-        df = pd.read_csv("ranking.csv")
-    except (FileNotFoundError, pd.errors.EmptyDataError):
-        print("ranking.csv not found or is empty. Creating a default leaderboard.")
-        df = pd.DataFrame(columns=["player", "rating", "set_wins", "set_losses", "game_wins", "game_losses"])
+    df = pd.read_csv("ranking.csv")
 
     # Ensure all required columns exist, even if the CSV is old
     for col in [
@@ -79,7 +72,7 @@ def build_leaderboard():
     </table>
     """
 
-    timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     owner, repo = get_repo_info()
     issues_url = f"https://github.com/{owner}/{repo}/issues/new?template=match.yml"
 

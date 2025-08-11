@@ -28,7 +28,7 @@ jobs:
 
       - name: Parse and Validate Issue
         id: parse
-        run: python scripts/parse_issue.py
+        run: python -m scripts.parse_issue
         env:
           ISSUE_BODY: ${{ github.event.issue.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
@@ -81,7 +81,7 @@ jobs:
       - name: Request reviews from collaborators only
         if: steps.create-pr.outputs.pull-request-number
         run: |
-          python scripts/request_reviews.py
+          python -m scripts.request_reviews
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.create-pr.outputs.pull-request-number }}
