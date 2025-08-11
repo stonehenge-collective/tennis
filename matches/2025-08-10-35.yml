@@ -1,0 +1,11 @@
+date: '2025-08-10'
+players:
+- dev-jeb
+- hunter
+sets:
+- - 6
+  - 3
+- - 3
+  - 6
+source_issue: 35
+
