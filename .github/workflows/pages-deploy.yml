@@ -31,7 +31,7 @@ jobs:
 
       - name: Build static leaderboard page
         id: build
-        run: python scripts/build_pages.py
+        run: python -m scripts.build_pages
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

@@ -54,7 +54,7 @@ jobs:
 
       - name: Evaluate dual-approval status
         if: steps.decide.outputs.apply == 'true'
-        run: python scripts/verify_match.py
+        run: python -m scripts.verify_match
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
