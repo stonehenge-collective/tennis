@@ -2,7 +2,6 @@ import glob
 import sys
 import yaml
 import pandas as pd
-import numpy as np
 
 K = 32
 ratings = {}
