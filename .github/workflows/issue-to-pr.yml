@@ -68,8 +68,8 @@ jobs:
           body: |
             This PR was automatically generated from issue #${{ github.event.issue.number }}.
 
-            **Winner**: @${{ steps.parse.outputs.winner }}
-            **Loser**: @${{ steps.parse.outputs.loser }}
+            **Player 1**: @${{ steps.parse.outputs.player1 }}
+            **Player 2**: @${{ steps.parse.outputs.player2 }}
 
             Please review the match data file and approve the PR to update the rankings.
 
