@@ -22,7 +22,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: uv pip install -r requirements.txt
+        run: pip install -r requirements.txt
 
       - name: Recompute ranking
         run: python -m scripts.ranking > ranking.csv
