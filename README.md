@@ -92,7 +92,7 @@ Follow these simple steps to record a match and have the rankings updated automa
 
 This section defines core terms and documents the current behavior so contributors and players share the same mental model.
 
-- **Match**: A single github issue representing one play session. A match will contain some number of sets.
+- **Match**: A single github issue representing one play "session" or match. A match will contain some number of sets.
 - **Set**: A line in the issue’s Sets block, e.g., `6-4`. The winner is the side with the higher games on that line.
 - **Game**: The tennis unit within a set.
 
