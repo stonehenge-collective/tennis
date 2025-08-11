@@ -68,8 +68,8 @@ jobs:
           body: |
             This PR was automatically generated from issue #${{ github.event.issue.number }}.
 
-            **Winner**: @${{ steps.parse.outputs.winner }}
-            **Loser**: @${{ steps.parse.outputs.loser }}
+            **Player 1**: @${{ steps.parse.outputs.player1 }}
+            **Player 2**: @${{ steps.parse.outputs.player2 }}
 
             Please review the match data file and approve the PR to update the rankings.
 
@@ -85,8 +85,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.create-pr.outputs.pull-request-number }}
-          WINNER: ${{ steps.parse.outputs.winner }}
-          LOSER: ${{ steps.parse.outputs.loser }}
+          PLAYER_1: ${{ steps.parse.outputs.player1 }}
+          PLAYER_2: ${{ steps.parse.outputs.player2 }}
 
       - name: Comment on Issue with PR Link
         if: steps.create-pr.outputs.pull-request-number

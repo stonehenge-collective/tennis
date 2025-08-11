@@ -27,50 +27,52 @@ def _ensure_player(player: str) -> None:
 
 
 def apply_match(match):
-    """Updates ratings and aggregates based on a single match file.
+    """Update ratings and aggregates from a single match file.
 
-    Ratings are updated once per match (unchanged ordering). Set and game
-    aggregates are computed by iterating each recorded set.
+    Elo is applied per set. Each set is an independent event that updates
+    the players' ratings based solely on who won the set (score margin ignored).
     """
-    winner, loser = match["players"]
+    player1, player2 = match["players"]
 
-    # Ratings (keep existing behavior)
-    rW = ratings.get(winner, 1200)
-    rL = ratings.get(loser, 1200)
-    eW = expected(rW, rL)
-    eL = expected(rL, rW)
-    ratings[winner] = rW + K * (1 - eW)
-    ratings[loser] = rL + K * (0 - eL)
+    # Ensure player entries exist for aggregation
+    _ensure_player(player1)
+    _ensure_player(player2)
 
-    # Ensure player entries exist
-    _ensure_player(winner)
-    _ensure_player(loser)
-
-    # Compute per-set and per-game aggregates
+    # Iterate sets: first number maps to player1's games, second to player2's
     sets = match.get("sets") or []
     for s in sets:
-        # By convention: s[0] is match winner's games for the set, s[1] is match loser's
         try:
-            w_games = int(s[0])
-            l_games = int(s[1])
+            p1_games = int(s[0])
+            p2_games = int(s[1])
         except (ValueError, TypeError, IndexError):
             # Skip malformed set entries
             continue
 
-        # Game aggregates
-        stats[winner]["game_wins"] += w_games
-        stats[winner]["game_losses"] += l_games
-        stats[loser]["game_wins"] += l_games
-        stats[loser]["game_losses"] += w_games
+        # Aggregate games
+        stats[player1]["game_wins"] += p1_games
+        stats[player1]["game_losses"] += p2_games
+        stats[player2]["game_wins"] += p2_games
+        stats[player2]["game_losses"] += p1_games
 
-        # Set winner/loser determination
-        if w_games > l_games:
-            stats[winner]["set_wins"] += 1
-            stats[loser]["set_losses"] += 1
-        elif l_games > w_games:
-            stats[loser]["set_wins"] += 1
-            stats[winner]["set_losses"] += 1
-        # If equal, ignore; ties should not occur in valid tennis set scores
+        # Determine set winner
+        if p1_games == p2_games:
+            # Ignore invalid/tied set
+            continue
+
+        set_winner = player1 if p1_games > p2_games else player2
+        set_loser = player2 if set_winner == player1 else player1
+
+        # Record set W/L
+        stats[set_winner]["set_wins"] += 1
+        stats[set_loser]["set_losses"] += 1
+
+        # Elo update for this set (independent event)
+        rW = ratings.get(set_winner, 1200)
+        rL = ratings.get(set_loser, 1200)
+        eW = expected(rW, rL)
+        eL = expected(rL, rW)
+        ratings[set_winner] = rW + K * (1 - eW)
+        ratings[set_loser] = rL + K * (0 - eL)
 
 
 def main():
