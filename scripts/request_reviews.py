@@ -2,7 +2,7 @@ import os
 import sys
 from typing import List
 
-from ..github_utils import (
+from github_utils import (
     get_bearer_token,
     get_repo_owner_and_name,
     check_collaborator,
