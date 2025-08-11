@@ -14,7 +14,8 @@ def parse_issue_body(body):
     if date_match:
         details["date"] = date_match.group(1).strip()
 
-    players_match = re.search(r"### Players \(winner first, comma-separated @handles\)\s*\n\s*([^\n]+)", body)
+    # Support both old and new headings (winner first vs player 1 first)
+    players_match = re.search(r"### Players.*?\n\s*([^\n]+)", body)
     if players_match:
         players_str = players_match.group(1).strip()
         details["players"] = [p.strip().replace("@", "") for p in players_str.split(",")]
@@ -43,7 +44,7 @@ def validate_data(data):
         errors.append("Match date is missing or not in the correct YYYY-MM-DD format.")
 
     if not data.get("players") or len(data["players"]) != 2:
-        errors.append("Exactly two players must be specified, winner first (e.g., '@alice, @bob').")
+        errors.append("Exactly two players must be specified (e.g., '@alice, @bob'). The first listed is Player 1.")
 
     if not data.get("sets"):
         errors.append("At least one set must be recorded in the 'Sets' section.")
@@ -51,7 +52,7 @@ def validate_data(data):
         for i, s in enumerate(data["sets"]):
             if not (isinstance(s, list) and len(s) == 2 and all(isinstance(x, int) for x in s)):
                 errors.append(
-                    f"Set #{i+1} has an invalid format. It must be `<WinnerGames>-<LoserGames>` (e.g., '6-3')."
+                    f"Set #{i+1} has an invalid format. It must be `<Player1Games>-<Player2Games>` (e.g., '6-3')."
                 )
 
     return errors
@@ -86,8 +87,9 @@ def main():
 
             f.write("validation_failed=false\n")
             f.write(f"date={parsed_data['date']}\n")
-            f.write(f"winner={parsed_data['players'][0]}\n")
-            f.write(f"loser={parsed_data['players'][1]}\n")
+            # Do not emit winner/loser; sets determine winners per the new convention
+            f.write(f"player1={parsed_data['players'][0]}\n")
+            f.write(f"player2={parsed_data['players'][1]}\n")
             f.write("match_yaml<<EOF\n")
             f.write(yaml_string)
             f.write("\nEOF\n")

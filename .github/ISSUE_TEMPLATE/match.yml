@@ -13,17 +13,17 @@ body:
   - type: textarea
     id: players
     attributes:
-      label: "Players (winner first, comma-separated @handles)"
+      label: "Players (player1, player2)"
       placeholder: |
-        @alice, @bob
+        @github_handle1, @github_handle2
     validations:
       required: true
   - type: textarea
     id: sets
     attributes:
-      label: "Sets (one line per set, winner’s games first)"
+      label: "Sets (one line per set, player1's games first)"
       description: |
-        Enter as `<WinnerGames>-<LoserGames>`, e.g.
+        Enter as `<player1Games>-<player2Games>`, e.g.
         ```
         6-3
         4-6
