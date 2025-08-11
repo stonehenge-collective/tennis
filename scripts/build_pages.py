@@ -2,7 +2,7 @@ import pandas as pd
 import os
 import tempfile
 from datetime import datetime
-from ..github_utils import get_repo_owner_and_name_or_default
+from github_utils import get_repo_owner_and_name_or_default
 
 
 """
