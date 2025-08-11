@@ -2,12 +2,14 @@ import json
 import os
 import sys
 from datetime import datetime
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
-import requests
-
-
-GITHUB_API = "https://api.github.com"
+from github_utils import (
+    get_bearer_token,
+    get_repo_owner_and_name,
+    get_pull_request,
+    list_pull_request_reviews,
+)
 
 
 def read_event_payload() -> Dict:
@@ -17,71 +19,6 @@ def read_event_payload() -> Dict:
         sys.exit(1)
     with open(event_path, "r") as f:
         return json.load(f)
-
-
-def get_repo_owner_and_name() -> Tuple[str, str]:
-    repo = os.environ.get("GITHUB_REPOSITORY")
-    if not repo or "/" not in repo:
-        print("GITHUB_REPOSITORY is not set", file=sys.stderr)
-        sys.exit(1)
-    owner, name = repo.split("/", 1)
-    return owner, name
-
-
-def get_token() -> str:
-    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GITHUB_BEARER_TOKEN")
-    if not token:
-        print("GITHUB_TOKEN is not available", file=sys.stderr)
-        sys.exit(1)
-    return token
-
-
-def gh_get(url: str, token: str) -> requests.Response:
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-    }
-    resp = requests.get(url, headers=headers, timeout=30)
-    return resp
-
-
-def gh_post(url: str, token: str, body: Dict) -> requests.Response:
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-        "Content-Type": "application/json",
-    }
-    resp = requests.post(url, headers=headers, data=json.dumps(body), timeout=30)
-    return resp
-
-
-def list_pr_reviews(owner: str, repo: str, pr_number: int, token: str) -> List[Dict]:
-    url = f"{GITHUB_API}/repos/{owner}/{repo}/pulls/{pr_number}/reviews"
-    resp = gh_get(url, token)
-    if resp.status_code != 200:
-        print(f"Error fetching reviews: {resp.status_code} {resp.text}", file=sys.stderr)
-        sys.exit(1)
-    return resp.json()
-
-
-def get_pr(owner: str, repo: str, pr_number: int, token: str) -> Dict:
-    url = f"{GITHUB_API}/repos/{owner}/{repo}/pulls/{pr_number}"
-    resp = gh_get(url, token)
-    if resp.status_code != 200:
-        print(f"Error fetching PR: {resp.status_code} {resp.text}", file=sys.stderr)
-        sys.exit(1)
-    return resp.json()
-
-
-def get_issue(owner: str, repo: str, issue_number: int, token: str) -> Dict:
-    url = f"{GITHUB_API}/repos/{owner}/{repo}/issues/{issue_number}"
-    resp = gh_get(url, token)
-    if resp.status_code != 200:
-        print(f"Error fetching Issue: {resp.status_code} {resp.text}", file=sys.stderr)
-        sys.exit(1)
-    return resp.json()
 
 
 def resolve_pr_number(event: Dict) -> int:
@@ -94,15 +31,15 @@ def resolve_pr_number(event: Dict) -> int:
 
 
 def main() -> None:
-    token = get_token()
+    token = get_bearer_token()
     owner, repo = get_repo_owner_and_name()
     event = read_event_payload()
     pr_number = resolve_pr_number(event)
 
-    pr = get_pr(owner, repo, pr_number, token)
+    pr = get_pull_request(owner, repo, pr_number, token)
     head_sha = pr.get("head", {}).get("sha")
 
-    reviews = list_pr_reviews(owner, repo, pr_number, token)
+    reviews = list_pull_request_reviews(owner, repo, pr_number, token)
     # Build latest review per user on the head commit
     latest_review_by_user: Dict[str, Dict] = {}
     for r in reviews:
