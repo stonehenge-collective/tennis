@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 import tempfile
-from datetime import datetime
+from datetime import datetime, timezone
 from github_utils import get_repo_owner_and_name_or_default
 
 
@@ -72,7 +72,7 @@ def build_leaderboard():
     </table>
     """
 
-    timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     owner, repo = get_repo_info()
     issues_url = f"https://github.com/{owner}/{repo}/issues/new?template=match.yml"
 
