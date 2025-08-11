@@ -4,7 +4,7 @@ import sys
 from datetime import datetime
 from typing import Dict, List
 
-from github_utils import (
+from ..github_utils import (
     get_bearer_token,
     get_repo_owner_and_name,
     get_pull_request,
