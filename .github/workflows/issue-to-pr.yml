@@ -85,8 +85,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.create-pr.outputs.pull-request-number }}
-          WINNER: ${{ steps.parse.outputs.winner }}
-          LOSER: ${{ steps.parse.outputs.loser }}
+          PLAYER_1: ${{ steps.parse.outputs.player1 }}
+          PLAYER_2: ${{ steps.parse.outputs.player2 }}
 
       - name: Comment on Issue with PR Link
         if: steps.create-pr.outputs.pull-request-number
