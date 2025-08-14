@@ -29,7 +29,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Build static leaderboard page
+      - name: Build static site (leaderboard and history)
         id: build
         run: python -m scripts.build_pages
 
