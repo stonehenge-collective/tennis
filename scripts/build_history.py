@@ -60,14 +60,27 @@ def build_history_page(output_dir: Optional[str] = None):
         issue_number = int(issue_search.group(1))
         pr_number = find_pr_number_from_comments(owner, repo, issue_number)
 
-        # Format score
-        sets_html = "".join([f"<li>{s['player1_games']}-{s['player2_games']}</li>" for s in match_data["sets"]])
+        # Format score - handle both array format [6, 4] and object format
+        sets_html = ""
+        for s in match_data["sets"]:
+            if isinstance(s, list) and len(s) == 2:
+                # Array format: [6, 4]
+                sets_html += f"<li>{s[0]}-{s[1]}</li>"
+            elif isinstance(s, dict) and 'player1_games' in s and 'player2_games' in s:
+                # Object format: {player1_games: 6, player2_games: 4}
+                sets_html += f"<li>{s['player1_games']}-{s['player2_games']}</li>"
         score_html = f"<ul>{sets_html}</ul>"
+
+        # Handle both array format (players: [player1, player2]) and separate fields
+        if "players" in match_data and isinstance(match_data["players"], list):
+            player1, player2 = match_data["players"][0], match_data["players"][1]
+        else:
+            player1, player2 = match_data.get("player1", ""), match_data.get("player2", "")
 
         matches.append({
             "date": match_data["date"],
-            "player1": match_data["player1"],
-            "player2": match_data["player2"],
+            "player1": player1,
+            "player2": player2,
             "score": score_html,
             "issue_url": f"https://github.com/{owner}/{repo}/issues/{issue_number}",
             "pr_url": f"https://github.com/{owner}/{repo}/pull/{pr_number}" if pr_number else ""
