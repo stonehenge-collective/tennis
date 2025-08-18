@@ -17,11 +17,24 @@ def get_repo_info():
     return get_repo_owner_and_name_or_default()
 
 
-def build_leaderboard():
-    """Generates a static HTML leaderboard from ranking.csv."""
-    df = pd.read_csv("ranking.csv")
+from scripts.build_history import build_history_page
 
-    # Ensure all required columns exist, even if the CSV is old
+
+def build_site():
+    """
+    Generates all static HTML pages for the site.
+    - Leaderboard (index.html)
+    - Match History (history.html)
+    """
+    # Create a single temporary directory for all pages
+    temp_dir = tempfile.mkdtemp(prefix="tennis_site_")
+
+    # --- Build Leaderboard Page (index.html) ---
+    try:
+        df = pd.read_csv("ranking.csv")
+    except FileNotFoundError:
+        # Create an empty dataframe if ranking.csv doesn't exist
+        df = pd.DataFrame(columns=["player", "rating", "set_wins", "set_losses", "game_wins", "game_losses"])
     for col in [
         "player",
         "rating",
@@ -98,24 +111,27 @@ def build_leaderboard():
             {html_table}
             <div class="footer">
                 <p>Last updated: {timestamp}</p>
-                <p><a href="{issues_url}">Record a new match</a></p>
+                <p>
+                    <a href="{issues_url}">Record a new match</a> |
+                    <a href="history.html">Match History</a>
+                </p>
             </div>
         </div>
     </body>
     </html>
     """
-
-    temp_dir = tempfile.mkdtemp(prefix="tennis_leaderboard_")
-    output_file = os.path.join(temp_dir, "index.html")
-
-    with open(output_file, "w") as f:
+    index_output_file = os.path.join(temp_dir, "index.html")
+    with open(index_output_file, "w") as f:
         f.write(html_template)
 
-    return temp_dir, output_file
+    # --- Build Match History Page (history.html) ---
+    build_history_page(output_dir=temp_dir)
+
+    return temp_dir, index_output_file
 
 
 if __name__ == "__main__":
-    temp_dir, output_file = build_leaderboard()
+    temp_dir, _ = build_site()
     if os.environ.get("GITHUB_ACTIONS") == "true":
         with open(os.environ.get("GITHUB_OUTPUT", "/dev/null"), "a") as f:
             f.write(f"temp_dir={temp_dir}")
