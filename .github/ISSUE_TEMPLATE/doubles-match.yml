@@ -1,6 +1,6 @@
-name: "🎾  Record a match"
-description: "Log a finished match – winner first"
-labels: ["new-match"]
+name: "🎾  Record a doubles match"
+description: "Log a finished doubles match – winner first"
+labels: ["new-doubles-match"]
 body:
   - type: input
     id: date
@@ -11,19 +11,19 @@ body:
       required: true
       pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
   - type: textarea
-    id: players
+    id: teams
     attributes:
-      label: "Players (player1, player2)"
+      label: "Teams (player1, player2 || player3, player4)"
       placeholder: |
-        @github_handle1, @github_handle2
+        @github_handle1, @github_handle2 || @github_handle3, @github_handle4
     validations:
       required: true
   - type: textarea
     id: sets
     attributes:
-      label: "Sets (one line per set, player1's games first)"
+      label: "Sets (one line per set, team1's games first)"
       description: |
-        Enter as `<player1Games>-<player2Games>`, e.g.
+        Enter as `<team1Games>-<team2Games>`, e.g.
         ```
         6-3
         4-6

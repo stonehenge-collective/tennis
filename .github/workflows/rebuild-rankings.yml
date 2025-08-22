@@ -3,14 +3,19 @@ name: "🏆 Rebuild Rankings"
 on:
   push:
     branches: [main]
-    paths: ['matches/**']
+    paths: ['singles-matches/**', 'doubles-matches/**']
 
 jobs:
-  rebuild:
+  rebuild-rankings-and-deploy:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Checkout repository
@@ -24,29 +29,31 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Recompute ranking
-        run: python -m scripts.ranking > ranking.csv
-
-      - name: Check for changes
-        id: check_changes
+      - name: Generate singles ranking
         run: |
-          if git diff --exit-code --quiet ranking.csv; then
-            echo "No changes to ranking.csv, skipping PR."
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "ranking.csv has changed, creating PR."
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
+          mkdir -p temp-rankings
+          python -m scripts.generate_singles_ranking > temp-rankings/singles-ranking.csv
 
-      - name: Create Pull Request for Ranking Update
-        if: steps.check_changes.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v6
+      - name: Generate doubles ranking
+        run: |
+          mkdir -p temp-rankings
+          python -m scripts.generate_doubles_ranking > temp-rankings/doubles-ranking.csv
+
+      - name: Build static site (leaderboard and history)
+        id: build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python -m scripts.build_pages
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore(ranking): update ranking.csv"
-          title: "🏆 chore(ranking): Automated ranking update"
-          body: |
-            The Elo rankings have been automatically updated based on new match results.
-          branch: auto/ranking-${{ github.run_id }}
-          delete-branch: true
-          labels: ranking-update
+          path: ${{ steps.build.outputs.temp_dir }}
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
