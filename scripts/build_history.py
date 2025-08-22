@@ -39,17 +39,17 @@ def build_history_page(output_dir: Optional[str] = None):
     """
     owner, repo = get_repo_owner_and_name_or_default()
 
-    # Gracefully handle missing matches directory
-    if not os.path.exists("matches"):
+    # Gracefully handle missing singles-matches directory
+    if not os.path.exists("singles-matches"):
         match_files = []
     else:
         match_files = sorted(
-            [f for f in os.listdir("matches") if f.endswith(".yml")], reverse=True
+            [f for f in os.listdir("singles-matches") if f.endswith(".yml")], reverse=True
         )
 
     matches = []
     for match_file in match_files:
-        match_path = os.path.join("matches", match_file)
+        match_path = os.path.join("singles-matches", match_file)
         with open(match_path, 'r') as f:
             match_data = yaml.safe_load(f)
 
