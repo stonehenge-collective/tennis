@@ -1,0 +1,14 @@
+date: '2025-08-24'
+team1:
+- dev-jeb
+- maryt
+team2:
+- c
+- b
+sets:
+- - 10
+  - 5
+- - 6
+  - 5
+source_issue: 58
+
