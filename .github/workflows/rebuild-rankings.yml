@@ -6,7 +6,7 @@ on:
     paths: ['singles-matches/**', 'doubles-matches/**']
 
 jobs:
-  rebuild-singles-ranking:
+  rebuild-rankings-and-deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: read
