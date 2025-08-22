@@ -1,6 +1,6 @@
-name: "🎾  Record a match"
-description: "Log a finished match – winner first"
-labels: ["new-match"]
+name: "🎾  Record a doubles match"
+description: "Log a finished doubles match – winner first"
+labels: ["new-doubles-match"]
 body:
   - type: input
     id: date
