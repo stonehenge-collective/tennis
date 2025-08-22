@@ -5,9 +5,9 @@ on:
     types: [opened, edited]
 
 jobs:
-  create-match-pr:
+  create-singles-match-pr:
     runs-on: ubuntu-latest
-    if: contains(github.event.issue.labels.*.name, 'new-match')
+    if: contains(github.event.issue.labels.*.name, 'new-singles-match')
 
     permissions:
       contents: write
@@ -28,7 +28,7 @@ jobs:
 
       - name: Parse and Validate Issue
         id: parse
-        run: python -m scripts.parse_issue
+        run: python -m scripts.parse_singles_issue
         env:
           ISSUE_BODY: ${{ github.event.issue.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
@@ -54,8 +54,8 @@ jobs:
       - name: Create Match File
         if: steps.parse.outputs.validation_failed == 'false'
         run: |
-          mkdir -p matches
-          echo "${{ steps.parse.outputs.match_yaml }}" > matches/${{ steps.parse.outputs.date }}-${{ github.event.issue.number }}.yml
+          mkdir -p singles-matches
+          echo "${{ steps.parse.outputs.match_yaml }}" > singles-matches/${{ steps.parse.outputs.date }}-${{ github.event.issue.number }}.yml
 
       - name: Create Pull Request
         if: steps.parse.outputs.validation_failed == 'false'
@@ -87,6 +87,108 @@ jobs:
           PR_NUMBER: ${{ steps.create-pr.outputs.pull-request-number }}
           PLAYER_1: ${{ steps.parse.outputs.player1 }}
           PLAYER_2: ${{ steps.parse.outputs.player2 }}
+
+      - name: Comment on Issue with PR Link
+        if: steps.create-pr.outputs.pull-request-number
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issueNumber = ${{ github.event.issue.number }};
+            const prNumber = ${{ steps.create-pr.outputs.pull-request-number }};
+            const body = `Thanks for recording your match! A pull request has been created for it.\n\nPlease review and approve it here: #${prNumber}`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: body
+            });
+
+  create-doubles-match-pr:
+    runs-on: ubuntu-latest
+    if: contains(github.event.issue.labels.*.name, 'new-doubles-match')
+
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Parse and Validate Issue
+        id: parse
+        run: python -m scripts.parse_doubles_issue
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+
+      - name: Handle Validation Failure
+        if: steps.parse.outputs.validation_failed == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issueNumber = ${{ github.event.issue.number }};
+            const errorMessage = `${{ steps.parse.outputs.error_message }}`;
+            const body = `Hi @${{ github.event.issue.user.login }}, thanks for submitting a match!\n\nOur bot encountered an issue parsing your submission:\n---\n${errorMessage}\n---\nPlease correct the issue by editing the original post. The bot will re-evaluate it automatically.`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: body
+            });
+            core.setFailed('Validation failed: ' + errorMessage);
+
+      - name: Create Match File
+        if: steps.parse.outputs.validation_failed == 'false'
+        run: |
+          mkdir -p doubles-matches
+          echo "${{ steps.parse.outputs.match_yaml }}" > doubles-matches/${{ steps.parse.outputs.date }}-${{ github.event.issue.number }}.yml
+
+      - name: Create Pull Request
+        if: steps.parse.outputs.validation_failed == 'false'
+        id: create-pr
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "feat(match): record match from issue #${{ github.event.issue.number }}"
+          title: "🎾 Match Data for Issue #${{ github.event.issue.number }}"
+          body: |
+            This PR was automatically generated from issue #${{ github.event.issue.number }}.
+
+            **Team 1**: @${{ steps.parse.outputs.team1 }}
+            **Team 2**: @${{ steps.parse.outputs.team2 }}
+
+            Please review the match data file and approve the PR to update the rankings.
+
+            Closes #${{ github.event.issue.number }}
+          branch: "match/issue-${{ github.event.issue.number }}"
+          delete-branch: true
+          labels: new-match
+
+      - name: Request reviews from collaborators only
+        if: steps.create-pr.outputs.pull-request-number
+        run: |
+          python -m scripts.request_reviews
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.create-pr.outputs.pull-request-number }}
+          PLAYER_1: ${{ steps.parse.outputs.player1 }}
+          PLAYER_2: ${{ steps.parse.outputs.player2 }}
+          PLAYER_3: ${{ steps.parse.outputs.player3 }}
+          PLAYER_4: ${{ steps.parse.outputs.player4 }}
 
       - name: Comment on Issue with PR Link
         if: steps.create-pr.outputs.pull-request-number
