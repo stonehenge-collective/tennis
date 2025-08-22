@@ -18,13 +18,15 @@ def main() -> None:
     pr_number_raw = os.environ.get("PR_NUMBER")
     player1 = os.environ.get("PLAYER_1")
     player2 = os.environ.get("PLAYER_2")
+    player3 = os.environ.get("PLAYER_3")
+    player4 = os.environ.get("PLAYER_4")
 
     if not pr_number_raw:
         print("PR_NUMBER is required", file=sys.stderr)
         sys.exit(1)
 
     pr_number = int(pr_number_raw)
-    players = [p for p in [player1, player2] if p]
+    players = [p for p in [player1, player2, player3, player4] if p]
 
     collaborators: List[str] = []
     non_collaborators: List[str] = []
