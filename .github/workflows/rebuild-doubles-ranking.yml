@@ -6,7 +6,7 @@ on:
     paths: ['doubles-matches/**']
 
 jobs:
-  rebuild:
+  rebuild-doubles-ranking:
     runs-on: ubuntu-latest
     permissions:
       contents: write

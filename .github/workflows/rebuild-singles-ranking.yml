@@ -6,7 +6,7 @@ on:
     paths: ['singles-matches/**']
 
 jobs:
-  rebuild:
+  rebuild-singles-ranking:
     runs-on: ubuntu-latest
     permissions:
       contents: write
