@@ -3,7 +3,7 @@ name: "🏆 Rebuild Rankings"
 on:
   push:
     branches: [main]
-    paths: ['matches/**']
+    paths: ['singles-matches/**']
 
 jobs:
   rebuild:
@@ -25,16 +25,16 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Recompute ranking
-        run: python -m scripts.ranking > ranking.csv
+        run: python -m scripts.generate_singles_ranking > singles-ranking.csv
 
       - name: Check for changes
         id: check_changes
         run: |
-          if git diff --exit-code --quiet ranking.csv; then
+          if git diff --exit-code --quiet singles-ranking.csv; then
             echo "No changes to ranking.csv, skipping PR."
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
-            echo "ranking.csv has changed, creating PR."
+            echo "singles-ranking.csv has changed, creating PR."
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
