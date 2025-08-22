@@ -77,18 +77,10 @@ def apply_match(match):
 
 def main():
     """Main function to calculate and print rankings."""
-    # Load existing rankings to bootstrap current ratings
-    try:
-        old_df = pd.read_csv("ranking.csv")
-        old_df = old_df.sort_values(by="rating", ascending=False).reset_index(drop=True)
-        for _, row in old_df.iterrows():
-            player = row["player"]
-            ratings[player] = row["rating"]
-    except (FileNotFoundError, pd.errors.EmptyDataError):
-        pass
+    # All players start with default rating of 1200 - no CSV bootstrapping needed
 
     # Process matches
-    for fn in sorted(glob.glob("matches/*.yml")):
+    for fn in sorted(glob.glob("singles-matches/*.yml")):
         with open(fn) as f:
             try:
                 match_data = yaml.safe_load(f)
