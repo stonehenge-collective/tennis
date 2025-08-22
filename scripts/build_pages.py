@@ -6,7 +6,7 @@ from github_utils import get_repo_owner_and_name_or_default
 
 
 """
-This page builder now relies solely on `ranking.csv` for all aggregates
+This page builder now relies solely on `temp-rankings/singles-ranking.csv` for all aggregates
 (rating, set and game records). It no longer parses
 match files. This avoids duplication of logic with `scripts/ranking.py`.
 """
@@ -31,9 +31,9 @@ def build_site():
 
     # --- Build Leaderboard Page (index.html) ---
     try:
-        df = pd.read_csv("ranking.csv")
+        df = pd.read_csv("temp-rankings/singles-ranking.csv")
     except FileNotFoundError:
-        # Create an empty dataframe if ranking.csv doesn't exist
+        # Create an empty dataframe if temp ranking doesn't exist
         df = pd.DataFrame(columns=["player", "rating", "set_wins", "set_losses", "game_wins", "game_losses"])
     for col in [
         "player",

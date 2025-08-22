@@ -80,7 +80,7 @@ def main():
     # All players start with default rating of 1200 - no CSV bootstrapping needed
 
     # Process matches
-    for fn in sorted(glob.glob("matches/*.yml")):
+    for fn in sorted(glob.glob("singles-matches/*.yml")):
         with open(fn) as f:
             try:
                 match_data = yaml.safe_load(f)
