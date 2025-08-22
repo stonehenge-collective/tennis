@@ -13,7 +13,7 @@ body:
   - type: textarea
     id: teams
     attributes:
-      label: "Teams (team1, team2)"
+      label: "Teams (player1, player2 || player3, player4)"
       placeholder: |
         @github_handle1, @github_handle2 || @github_handle3, @github_handle4
     validations:
