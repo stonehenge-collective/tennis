@@ -1,6 +1,6 @@
 # SC Tennis League
 
-[![leaderboard](https://github.com/stonehenge-collective/tennis/actions/workflows/pages-deploy.yml/badge.svg)](https://github.com/stonehenge-collective/tennis/actions/workflows/pages-deploy.yml)
+[leaderboard](https://stonehenge-collective.github.io/sc-tennis-league/)
 
 ## How to Record a Match
 
