@@ -20,36 +20,32 @@ def find_pr_number_from_comments(owner: str, repo: str, issue_number: int) -> in
     Find the PR number from the comments of an issue.
     The bot posts a comment with a link to the PR.
     """
-    comments = list_issue_comments(owner, repo, issue_number)
-    for comment in comments:
-        # The bot's username is "github-actions[bot]"
-        if comment["user"]["login"] == "github-actions[bot]":
-            match = PR_NUM_RE.search(comment["body"])
-            if match:
-                return int(match.group(1))
+    try:
+        comments = list_issue_comments(owner, repo, issue_number)
+        for comment in comments:
+            # The bot's username is "github-actions[bot]"
+            if comment["user"]["login"] == "github-actions[bot]":
+                match = PR_NUM_RE.search(comment["body"])
+                if match:
+                    return int(match.group(1))
+    except Exception:
+        # Gracefully handle GitHub API errors (missing token, rate limits, etc.)
+        pass
     return 0
 
 
-def build_history_page(output_dir: Optional[str] = None):
-    """
-    Generates a static HTML page with the match history.
-
-    If `output_dir` is provided, `history.html` is created there. Otherwise,
-    a temporary directory is created.
-    """
-    owner, repo = get_repo_owner_and_name_or_default()
-
-    # Gracefully handle missing singles-matches directory
-    if not os.path.exists("singles-matches"):
-        match_files = []
-    else:
-        match_files = sorted(
-            [f for f in os.listdir("singles-matches") if f.endswith(".yml")], reverse=True
-        )
-
+def load_matches_from_directory(directory: str, match_type: str):
+    """Load matches from a specific directory (singles-matches or doubles-matches)"""
+    if not os.path.exists(directory):
+        return []
+    
+    match_files = sorted(
+        [f for f in os.listdir(directory) if f.endswith(".yml")], reverse=True
+    )
+    
     matches = []
     for match_file in match_files:
-        match_path = os.path.join("singles-matches", match_file)
+        match_path = os.path.join(directory, match_file)
         with open(match_path, 'r') as f:
             match_data = yaml.safe_load(f)
 
@@ -58,8 +54,7 @@ def build_history_page(output_dir: Optional[str] = None):
             continue
 
         issue_number = int(issue_search.group(1))
-        pr_number = find_pr_number_from_comments(owner, repo, issue_number)
-
+        
         # Format score - handle both array format [6, 4] and object format
         sets_html = ""
         for s in match_data["sets"]:
@@ -71,33 +66,69 @@ def build_history_page(output_dir: Optional[str] = None):
                 sets_html += f"<li>{s['player1_games']}-{s['player2_games']}</li>"
         score_html = f"<ul>{sets_html}</ul>"
 
-        # Handle both array format (players: [player1, player2]) and separate fields
-        if "players" in match_data and isinstance(match_data["players"], list):
-            player1, player2 = match_data["players"][0], match_data["players"][1]
+        # Handle different match formats
+        if match_type == "singles":
+            # Singles: players: [player1, player2]
+            if "players" in match_data and isinstance(match_data["players"], list):
+                player1, player2 = match_data["players"][0], match_data["players"][1]
+                players_display = f"{player1} vs {player2}"
+            else:
+                player1, player2 = match_data.get("player1", ""), match_data.get("player2", "")
+                players_display = f"{player1} vs {player2}"
         else:
-            player1, player2 = match_data.get("player1", ""), match_data.get("player2", "")
+            # Doubles: team1: [p1, p2], team2: [p3, p4]
+            if "team1" in match_data and "team2" in match_data:
+                team1 = ", ".join(match_data["team1"])
+                team2 = ", ".join(match_data["team2"])
+                players_display = f"({team1}) vs ({team2})"
+            else:
+                players_display = "Unknown teams"
 
         matches.append({
             "date": match_data["date"],
-            "player1": player1,
-            "player2": player2,
+            "players_display": players_display,
             "score": score_html,
-            "issue_url": f"https://github.com/{owner}/{repo}/issues/{issue_number}",
-            "pr_url": f"https://github.com/{owner}/{repo}/pull/{pr_number}" if pr_number else ""
+            "issue_number": issue_number,
+            "type": match_type.title()
         })
+    
+    return matches
+
+
+def build_history_page(output_dir: Optional[str] = None):
+    """
+    Generates a static HTML page with both singles and doubles match history.
+
+    If `output_dir` is provided, `history.html` is created there. Otherwise,
+    a temporary directory is created.
+    """
+    owner, repo = get_repo_owner_and_name_or_default()
+
+    # Load matches from both directories
+    singles_matches = load_matches_from_directory("singles-matches", "singles")
+    doubles_matches = load_matches_from_directory("doubles-matches", "doubles")
+    
+    # Combine and sort all matches by date (most recent first)
+    all_matches = singles_matches + doubles_matches
+    all_matches.sort(key=lambda x: x["date"], reverse=True)
 
     # Generate the HTML table rows
     table_rows = ""
-    for match in matches:
-        player1_link = f'<a href="https://github.com/{match["player1"]}">{match["player1"]}</a>'
-        player2_link = f'<a href="https://github.com/{match["player2"]}">{match["player2"]}</a>'
-        pr_link = f'<a href="{match["pr_url"]}">PR</a>' if match["pr_url"] else "N/A"
-        issue_link = f'<a href="{match["issue_url"]}">Issue</a>'
+    for match in all_matches:
+        # Get PR number if needed
+        pr_number = find_pr_number_from_comments(owner, repo, match["issue_number"])
+        
+        pr_link = f'<a href="https://github.com/{owner}/{repo}/pull/{pr_number}">PR</a>' if pr_number else "N/A"
+        issue_link = f'<a href="https://github.com/{owner}/{repo}/issues/{match["issue_number"]}">Issue</a>'
+        
+        # Add type badge
+        type_badge = f'<span class="badge bg-{"primary" if match["type"] == "Singles" else "success"}">{match["type"]}</span>'
 
         table_rows += f"""
         <tr>
             <td>{match["date"]}</td>
-            <td>{player1_link} vs {player2_link}</td>
+            <td>{type_badge}</td>
+            <td>{match["players_display"]}</td>
             <td>{match["score"]}</td>
             <td>{issue_link}</td>
             <td>{pr_link}</td>
@@ -105,20 +136,23 @@ def build_history_page(output_dir: Optional[str] = None):
         """
 
     html_table = f"""
-    <table class="table table-striped table-hover">
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Players</th>
-                <th>Score</th>
-                <th>Issue</th>
-                <th>PR</th>
-            </tr>
-        </thead>
-        <tbody>
-            {table_rows}
-        </tbody>
-    </table>
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Players/Teams</th>
+                    <th>Score</th>
+                    <th>Issue</th>
+                    <th>PR</th>
+                </tr>
+            </thead>
+            <tbody>
+                {table_rows}
+            </tbody>
+        </table>
+    </div>
     """
 
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
@@ -134,10 +168,24 @@ def build_history_page(output_dir: Optional[str] = None):
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
         <style>
             body {{ padding: 2rem; }}
-            .container {{ max-width: 800px; }}
-            h1 {{ margin-bottom: 1.5rem; }}
-            .footer {{ margin-top: 2rem; font-size: 0.8rem; color: #6c757d; }}
+            .container {{ max-width: 1000px; }}
+            h1 {{ margin-bottom: 1.5rem; text-align: center; }}
+            .footer {{ 
+                margin-top: 2rem; 
+                padding-top: 2rem;
+                border-top: 1px solid #dee2e6;
+                font-size: 0.9rem; 
+                color: #6c757d; 
+                text-align: center;
+            }}
             ul {{ margin-bottom: 0; padding-left: 1.5rem; }}
+            .table-responsive {{ 
+                max-height: 600px; 
+                overflow-y: auto; 
+                border: 1px solid #dee2e6;
+                border-radius: 0.375rem;
+            }}
+            .badge {{ font-size: 0.75em; }}
         </style>
     </head>
     <body>
@@ -146,7 +194,7 @@ def build_history_page(output_dir: Optional[str] = None):
             {html_table}
             <div class="footer">
                 <p>Last updated: {timestamp}</p>
-                <p><a href="index.html">Back to Leaderboard</a> | <a href="{repo_url}">GitHub Repository</a></p>
+                <p><a href="index.html">Back to Leaderboards</a> | <a href="{repo_url}">GitHub Repository</a></p>
             </div>
         </div>
     </body>

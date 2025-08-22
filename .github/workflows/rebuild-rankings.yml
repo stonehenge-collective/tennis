@@ -3,7 +3,7 @@ name: "🏆 Rebuild Rankings"
 on:
   push:
     branches: [main]
-    paths: ['singles-matches/**']
+    paths: ['singles-matches/**', 'doubles-matches/**']
 
 jobs:
   rebuild-singles-ranking:
@@ -33,6 +33,11 @@ jobs:
         run: |
           mkdir -p temp-rankings
           python -m scripts.generate_singles_ranking > temp-rankings/singles-ranking.csv
+
+      - name: Generate doubles ranking
+        run: |
+          mkdir -p temp-rankings
+          python -m scripts.generate_doubles_ranking > temp-rankings/doubles-ranking.csv
 
       - name: Build static site (leaderboard and history)
         id: build
