@@ -168,8 +168,8 @@ jobs:
           body: |
             This PR was automatically generated from issue #${{ github.event.issue.number }}.
 
-            **Team 1**: @${{ steps.parse.outputs.team1 }}
-            **Team 2**: @${{ steps.parse.outputs.team2 }}
+            **Team 1**: @${{ steps.parse.outputs.player1 }}, @${{ steps.parse.outputs.player2 }}
+            **Team 2**: @${{ steps.parse.outputs.player3 }}, @${{ steps.parse.outputs.player4 }}
 
             Please review the match data file and approve the PR to update the rankings.
 

@@ -52,7 +52,7 @@ def validate_data(data):
 
     if not data.get("team1") or len(data["team1"]) != 2:
         errors.append("Team 1 must have exactly two players (e.g., '@alice, @bob').")
-    
+
     if not data.get("team2") or len(data["team2"]) != 2:
         errors.append("Team 2 must have exactly two players (e.g., '@charlie, @david').")
 
@@ -96,14 +96,8 @@ def main():
             }
             yaml_string = yaml.dump(match_file_content, default_flow_style=False, sort_keys=False)
 
-            # Create team strings for the PR body
-            team1_str = f"@{parsed_data['team1'][0]}, @{parsed_data['team1'][1]}"
-            team2_str = f"@{parsed_data['team2'][0]}, @{parsed_data['team2'][1]}"
-
             f.write("validation_failed=false\n")
             f.write(f"date={parsed_data['date']}\n")
-            f.write(f"team1={team1_str}\n")
-            f.write(f"team2={team2_str}\n")
             # Individual players for tagging
             f.write(f"player1={parsed_data['team1'][0]}\n")
             f.write(f"player2={parsed_data['team1'][1]}\n")
