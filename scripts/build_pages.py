@@ -199,6 +199,10 @@ def build_site():
         <div class="container">
             <h1>🏆 Tennis Leaderboards</h1>
             
+            <marquee behavior="scroll" direction="left" bgcolor="#f8f9fa" style="padding: 10px; margin-bottom: 2rem; border: 1px solid #dee2e6; border-radius: 0.375rem; font-weight: 500;">
+                🎾 No ball boys were harmed in the making of these statistics • Serving up fresh rankings daily! • Love means nothing in tennis, but these scores mean everything! • Deuce you believe these rankings? • Game, Set, Match... and GitHub Issues! 🎾
+            </marquee>
+            
             <div class="leaderboards-container">
                 {singles_table}
                 {doubles_table}
