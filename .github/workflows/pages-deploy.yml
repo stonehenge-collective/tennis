@@ -1,9 +1,7 @@
 name: "🚀 Deploy Leaderboard to Pages"
 
 on:
-  push:
-    branches: [main]
-    paths: ['ranking.csv'] # Trigger only when the ranking file changes
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -20,6 +18,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Download singles ranking artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: singles-ranking
+          path: temp-rankings/
 
       - name: Setup Python
         uses: actions/setup-python@v4

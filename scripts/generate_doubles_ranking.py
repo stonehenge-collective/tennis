@@ -91,15 +91,7 @@ def apply_match(match):
 
 def main():
     """Main function to calculate and print doubles rankings."""
-    # Load existing rankings to bootstrap current ratings
-    try:
-        old_df = pd.read_csv("doubles_ranking.csv")
-        old_df = old_df.sort_values(by="rating", ascending=False).reset_index(drop=True)
-        for _, row in old_df.iterrows():
-            team = row["team"]
-            ratings[team] = row["rating"]
-    except (FileNotFoundError, pd.errors.EmptyDataError):
-        pass
+    # All teams start with default rating of 1200 - no CSV bootstrapping needed
 
     # Process doubles matches
     for fn in sorted(glob.glob("doubles-matches/*.yml")):
