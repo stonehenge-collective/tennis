@@ -76,7 +76,7 @@ jobs:
             Closes #${{ github.event.issue.number }}
           branch: "match/issue-${{ github.event.issue.number }}"
           delete-branch: true
-          labels: new-match
+          labels: new-singles-match
 
       - name: Request reviews from collaborators only
         if: steps.create-pr.outputs.pull-request-number
@@ -176,7 +176,7 @@ jobs:
             Closes #${{ github.event.issue.number }}
           branch: "match/issue-${{ github.event.issue.number }}"
           delete-branch: true
-          labels: new-match
+          labels: new-doubles-match
 
       - name: Request reviews from collaborators only
         if: steps.create-pr.outputs.pull-request-number
