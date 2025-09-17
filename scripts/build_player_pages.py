@@ -6,10 +6,13 @@ import os
 import json
 import re
 from datetime import datetime
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from github_utils import get_repo_owner_and_name_or_default
 
 K = 32
-PLAYER_DATA = {} # {player: {singles: [], doubles: []}}
+PLAYER_DATA = {} # {player: {singles: {candlestick: [], scatter: []}, doubles: {candlestick: [], scatter: []}}}
 
 def expected(rA, rB):
     return 1 / (1 + 10 ** ((rB - rA) / 400))
@@ -37,32 +40,40 @@ def calculate_elo_history():
     # Sort matches by date, which is the prefix of the filename
     match_files.sort()
 
-    daily_set_counter = {}
+    daily_events = {} # {date: [{player, type, ...}]}
 
     for fn in match_files:
         with open(fn) as f:
             match_data = yaml.safe_load(f)
+            date = match_data['date']
+            if date not in daily_events:
+                daily_events[date] = []
 
-            base_date = datetime.strptime(match_data['date'], '%Y-%m-%d')
-            if match_data['date'] not in daily_set_counter:
-                daily_set_counter[match_data['date']] = 0
+            daily_events[date].append({
+                'filename': fn,
+                'data': match_data
+            })
 
-            issue_number = get_issue_number_from_filename(fn)
+    for date in sorted(daily_events.keys()):
+        events = daily_events[date]
+
+        # Store daily elo changes for all players
+        daily_elo_changes = {} # {player: {type: 'singles'/'doubles', elos: [elo_after_set_1, ...], ...}}
+
+        for event in events:
+            match_data = event['data']
+            issue_number = get_issue_number_from_filename(event['filename'])
 
             if 'players' in match_data: # Singles match
                 player1, player2 = match_data['players']
 
                 for p in [player1, player2]:
                     if p not in PLAYER_DATA:
-                        PLAYER_DATA[p] = {'singles': [], 'doubles': []}
-
-                r1 = singles_ratings.get(player1, 1200)
-                r2 = singles_ratings.get(player2, 1200)
+                        PLAYER_DATA[p] = {'singles': {'candlestick': [], 'scatter': []}, 'doubles': {'candlestick': [], 'scatter': []}}
+                    if p not in daily_elo_changes:
+                        daily_elo_changes[p] = {'type': 'singles', 'elos': [], 'details': []}
 
                 for s in match_data.get('sets', []):
-                    daily_set_counter[match_data['date']] += 1
-                    match_date = (base_date + pd.Timedelta(hours=daily_set_counter[match_data['date']])).isoformat()
-
                     p1_games, p2_games = int(s[0]), int(s[1])
                     if p1_games == p2_games: continue
 
@@ -83,25 +94,14 @@ def calculate_elo_history():
                     singles_ratings[winner] = rW_after
                     singles_ratings[loser] = rL_after
 
-                    # Add data points for both players
-                    PLAYER_DATA[winner]['singles'].append({
-                        'date': match_date,
-                        'opponent': loser,
-                        'sets': f"{p1_games}-{p2_games}" if winner==player1 else f"{p2_games}-{p1_games}",
-                        'elo_change': round(elo_change_winner),
-                        'elo': round(rW_after),
-                        'result': 'W',
-                        'issue_number': issue_number
-                    })
-                    PLAYER_DATA[loser]['singles'].append({
-                        'date': match_date,
-                        'opponent': winner,
-                        'sets': f"{p2_games}-{p1_games}" if loser==player1 else f"{p1_games}-{p2_games}",
-                        'elo_change': round(elo_change_loser),
-                        'elo': round(rL_after),
-                        'result': 'L',
-                        'issue_number': issue_number
-                    })
+                    daily_elo_changes[winner]['elos'].append(rW_after)
+                    daily_elo_changes[loser]['elos'].append(rL_after)
+
+                    # Store details for scatter plot tooltips
+                    winner_details = {'date': date, 'opponent': loser, 'sets': f"{p1_games}-{p2_games}" if winner==player1 else f"{p2_games}-{p1_games}", 'elo_change': round(elo_change_winner), 'elo': round(rW_after), 'result': 'W', 'issue_number': issue_number}
+                    loser_details = {'date': date, 'opponent': winner, 'sets': f"{p2_games}-{p1_games}" if loser==player1 else f"{p1_games}-{p2_games}", 'elo_change': round(elo_change_loser), 'elo': round(rL_after), 'result': 'L', 'issue_number': issue_number}
+                    daily_elo_changes[winner]['details'].append(winner_details)
+                    daily_elo_changes[loser]['details'].append(loser_details)
 
             elif 'team1' in match_data: # Doubles match
                 team1 = match_data['team1']
@@ -109,15 +109,14 @@ def calculate_elo_history():
 
                 for p in team1 + team2:
                     if p not in PLAYER_DATA:
-                        PLAYER_DATA[p] = {'singles': [], 'doubles': []}
+                        PLAYER_DATA[p] = {'singles': {'candlestick': [], 'scatter': []}, 'doubles': {'candlestick': [], 'scatter': []}}
+                    if p not in daily_elo_changes:
+                        daily_elo_changes[p] = {'type': 'doubles', 'elos': [], 'details': []}
 
                 r_team1_avg = sum(doubles_ratings.get(p, 1200) for p in team1) / 2
                 r_team2_avg = sum(doubles_ratings.get(p, 1200) for p in team2) / 2
 
                 for s in match_data.get('sets', []):
-                    daily_set_counter[match_data['date']] += 1
-                    match_date = (base_date + pd.Timedelta(hours=daily_set_counter[match_data['date']])).isoformat()
-
                     t1_games, t2_games = int(s[0]), int(s[1])
                     if t1_games == t2_games: continue
 
@@ -131,30 +130,35 @@ def calculate_elo_history():
                         r_before = doubles_ratings.get(p, 1200)
                         r_after = r_before + elo_change_per_player
                         doubles_ratings[p] = r_after
-                        PLAYER_DATA[p]['doubles'].append({
-                            'date': match_date,
-                            'opponent': ", ".join(losing_team),
-                            'sets': f"{t1_games}-{t2_games}" if winning_team==team1 else f"{t2_games}-{t1_games}",
-                            'elo_change': round(elo_change_per_player),
-                            'elo': round(r_after),
-                            'result': 'W',
-                            'issue_number': issue_number,
-                            'partner': [partner for partner in winning_team if partner != p][0]
-                        })
+                        daily_elo_changes[p]['elos'].append(r_after)
+                        details = {'date': date, 'opponent': ", ".join(losing_team), 'sets': f"{t1_games}-{t2_games}" if winning_team==team1 else f"{t2_games}-{t1_games}", 'elo_change': round(elo_change_per_player), 'elo': round(r_after), 'result': 'W', 'issue_number': issue_number, 'partner': [partner for partner in winning_team if partner != p][0]}
+                        daily_elo_changes[p]['details'].append(details)
+
                     for p in losing_team:
                         r_before = doubles_ratings.get(p, 1200)
                         r_after = r_before - elo_change_per_player
                         doubles_ratings[p] = r_after
-                        PLAYER_DATA[p]['doubles'].append({
-                            'date': match_date,
-                            'opponent': ", ".join(winning_team),
-                            'sets': f"{t2_games}-{t1_games}" if losing_team==team1 else f"{t1_games}-{t2_games}",
-                            'elo_change': round(elo_change_per_player),
-                            'elo': round(r_after),
-                            'result': 'L',
-                            'issue_number': issue_number,
-                            'partner': [partner for partner in losing_team if partner != p][0]
-                        })
+                        daily_elo_changes[p]['elos'].append(r_after)
+                        details = {'date': date, 'opponent': ", ".join(winning_team), 'sets': f"{t2_games}-{t1_games}" if losing_team==team1 else f"{t1_games}-{t2_games}", 'elo_change': round(-elo_change_per_player), 'elo': round(r_after), 'result': 'L', 'issue_number': issue_number, 'partner': [partner for partner in losing_team if partner != p][0]}
+                        daily_elo_changes[p]['details'].append(details)
+
+        # Process daily aggregations
+        for player, changes in daily_elo_changes.items():
+            match_type = changes['type']
+            elos = changes['elos']
+            if not elos: continue
+
+            open_elo = elos[0]
+            close_elo = elos[-1]
+            high_elo = max(elos)
+            low_elo = min(elos)
+
+            candlestick_data = {'x': date, 'o': open_elo, 'h': high_elo, 'l': low_elo, 'c': close_elo}
+            PLAYER_DATA[player][match_type]['candlestick'].append(candlestick_data)
+
+            for i, elo in enumerate(elos):
+                scatter_data = {'x': date, 'y': elo, 'details': changes['details'][i]}
+                PLAYER_DATA[player][match_type]['scatter'].append(scatter_data)
 
 
 def generate_player_pages(output_dir):
@@ -181,8 +185,7 @@ def generate_player_pages(output_dir):
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{player}'s ELO History</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
         body {{ padding: 2rem; }}
         .chart-container {{ height: 400px; }}
@@ -220,29 +223,44 @@ def generate_player_pages(output_dir):
                     chart.destroy();
                 }}
 
-                const labels = data.map(d => new Date(d.date));
-                const eloData = data.map(d => d.elo);
+                // Create line chart with scatter points for individual sets
+                const lineData = data.candlestick.map(d => ({{ x: d.x, y: d.c }}));
+                const scatterData = data.scatter;
 
                 chart = new Chart(ctx, {{
                     type: 'line',
                     data: {{
-                        labels: labels,
-                        datasets: [{{
-                            label: 'ELO',
-                            data: eloData,
-                            borderColor: 'rgb(75, 192, 192)',
-                            tension: 0.1
-                        }}]
+                        datasets: [
+                            {{
+                                label: 'Daily ELO (Close)',
+                                data: lineData,
+                                borderColor: 'rgb(54, 162, 235)',
+                                backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                                tension: 0.1,
+                                fill: false,
+                                pointRadius: 4
+                            }},
+                            {{
+                                label: 'Individual Sets',
+                                type: 'scatter',
+                                data: scatterData,
+                                backgroundColor: function(context) {{
+                                    const result = context.raw.details.result;
+                                    return result === 'W' ? 'rgba(75, 192, 192, 0.7)' : 'rgba(255, 99, 132, 0.7)';
+                                }},
+                                borderColor: function(context) {{
+                                    const result = context.raw.details.result;
+                                    return result === 'W' ? 'rgb(75, 192, 192)' : 'rgb(255, 99, 132)';
+                                }},
+                                pointRadius: 3
+                            }}
+                        ]
                     }},
                     options: {{
                         responsive: true,
                         maintainAspectRatio: false,
                         scales: {{
                             x: {{
-                                type: 'time',
-                                time: {{
-                                    unit: 'day'
-                                }},
                                 title: {{
                                     display: true,
                                     text: 'Date'
@@ -259,14 +277,18 @@ def generate_player_pages(output_dir):
                             tooltip: {{
                                 callbacks: {{
                                     label: function(context) {{
-                                        const d = data[context.dataIndex];
-                                        let tooltip = `ELO: ${{d.elo}} (${{d.elo_change > 0 ? '+' : ''}}${{d.elo_change}})`;
-                                        tooltip += `\\nResult: ${{d.result}} vs ${{d.opponent}}`;
-                                        if (d.partner) {{
-                                            tooltip += ` (with ${{d.partner}})`;
+                                        if (context.datasetIndex === 1) {{ // Scatter (individual sets)
+                                            const details = context.raw.details;
+                                            let tooltip = `ELO: ${{details.elo}} (${{details.elo_change > 0 ? '+' : ''}}${{details.elo_change}})`;
+                                            tooltip += `\\nResult: ${{details.result}} vs ${{details.opponent}}`;
+                                            if (details.partner) {{
+                                                tooltip += ` (with ${{details.partner}})`;
+                                            }}
+                                            tooltip += `\\nSets: ${{details.sets}}`;
+                                            return tooltip;
+                                        }} else {{ // Line (daily close)
+                                            return `Daily Close ELO: ${{context.raw.y}}`;
                                         }}
-                                        tooltip += `\\nSets: ${{d.sets}}`;
-                                        return tooltip;
                                     }}
                                 }}
                             }}
@@ -275,9 +297,11 @@ def generate_player_pages(output_dir):
                             const points = chart.getElementsAtEventForMode(e, 'nearest', {{ intersect: true }}, true);
                             if (points.length) {{
                                 const firstPoint = points[0];
-                                const dataPoint = data[firstPoint.index];
-                                if (dataPoint.issue_number) {{
-                                    window.open(`{repo_url}/issues/${{dataPoint.issue_number}}`, '_blank');
+                                if (firstPoint.datasetIndex === 1) {{ // Scatter plot
+                                    const dataPoint = chart.data.datasets[1].data[firstPoint.index];
+                                    if (dataPoint.details.issue_number) {{
+                                        window.open(`{repo_url}/issues/${{dataPoint.details.issue_number}}`, '_blank');
+                                    }}
                                 }}
                             }}
                         }}
