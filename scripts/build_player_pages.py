@@ -37,10 +37,16 @@ def calculate_elo_history():
     # Sort matches by date, which is the prefix of the filename
     match_files.sort()
 
+    daily_set_counter = {}
+
     for fn in match_files:
         with open(fn) as f:
             match_data = yaml.safe_load(f)
-            match_date = datetime.strptime(match_data['date'], '%Y-%m-%d').isoformat()
+
+            base_date = datetime.strptime(match_data['date'], '%Y-%m-%d')
+            if match_data['date'] not in daily_set_counter:
+                daily_set_counter[match_data['date']] = 0
+
             issue_number = get_issue_number_from_filename(fn)
 
             if 'players' in match_data: # Singles match
@@ -54,6 +60,9 @@ def calculate_elo_history():
                 r2 = singles_ratings.get(player2, 1200)
 
                 for s in match_data.get('sets', []):
+                    daily_set_counter[match_data['date']] += 1
+                    match_date = (base_date + pd.Timedelta(hours=daily_set_counter[match_data['date']])).isoformat()
+
                     p1_games, p2_games = int(s[0]), int(s[1])
                     if p1_games == p2_games: continue
 
@@ -106,6 +115,9 @@ def calculate_elo_history():
                 r_team2_avg = sum(doubles_ratings.get(p, 1200) for p in team2) / 2
 
                 for s in match_data.get('sets', []):
+                    daily_set_counter[match_data['date']] += 1
+                    match_date = (base_date + pd.Timedelta(hours=daily_set_counter[match_data['date']])).isoformat()
+
                     t1_games, t2_games = int(s[0]), int(s[1])
                     if t1_games == t2_games: continue
 
