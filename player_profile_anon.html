@@ -44,22 +44,38 @@
                     chart.destroy();
                 }
 
-                // Create line chart with scatter points for individual sets
-                const lineData = data.candlestick.map(d => ({ x: d.x, y: d.c }));
+                // Create custom candlestick-style chart using bar + line combination
+                const candlestickData = data.candlestick;
                 const scatterData = data.scatter;
 
+                // Create datasets for candlestick simulation
+                const candlestickBars = candlestickData.map(d => ({
+                    x: d.x,
+                    y: [d.l, d.h], // Full range: low to high
+                    backgroundColor: d.c >= d.o ? 'rgba(34, 197, 94, 0.6)' : 'rgba(239, 68, 68, 0.6)',
+                    borderColor: d.c >= d.o ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)',
+                    borderWidth: 2,
+                    ohlc: d // Store full OHLC data
+                }));
+
                 chart = new Chart(ctx, {
-                    type: 'line',
+                    type: 'bar',
                     data: {
                         datasets: [
                             {
-                                label: 'Daily ELO (Close)',
-                                data: lineData,
-                                borderColor: 'rgb(54, 162, 235)',
-                                backgroundColor: 'rgba(54, 162, 235, 0.1)',
-                                tension: 0.1,
-                                fill: false,
-                                pointRadius: 4
+                                label: 'Daily ELO Range',
+                                data: candlestickBars,
+                                barThickness: 20,
+                                backgroundColor: function(context) {
+                                    const ohlc = context.raw.ohlc;
+                                    return ohlc.c >= ohlc.o ? 'rgba(34, 197, 94, 0.8)' : 'rgba(239, 68, 68, 0.8)';
+                                },
+                                borderColor: function(context) {
+                                    const ohlc = context.raw.ohlc;
+                                    return ohlc.c >= ohlc.o ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)';
+                                },
+                                borderWidth: 2,
+                                order: 2
                             },
                             {
                                 label: 'Individual Sets',
@@ -67,13 +83,16 @@
                                 data: scatterData,
                                 backgroundColor: function(context) {
                                     const result = context.raw.details.result;
-                                    return result === 'W' ? 'rgba(75, 192, 192, 0.7)' : 'rgba(255, 99, 132, 0.7)';
+                                    return result === 'W' ? 'rgba(34, 197, 94, 0.9)' : 'rgba(239, 68, 68, 0.9)';
                                 },
                                 borderColor: function(context) {
                                     const result = context.raw.details.result;
-                                    return result === 'W' ? 'rgb(75, 192, 192)' : 'rgb(255, 99, 132)';
+                                    return result === 'W' ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)';
                                 },
-                                pointRadius: 3
+                                pointRadius: 5,
+                                pointHoverRadius: 7,
+                                borderWidth: 2,
+                                order: 1
                             }
                         ]
                     },
@@ -88,6 +107,7 @@
                                 }
                             },
                             y: {
+                                beginAtZero: false,
                                 title: {
                                     display: true,
                                     text: 'ELO'
@@ -95,10 +115,31 @@
                             }
                         },
                         plugins: {
+                            legend: {
+                                labels: {
+                                    generateLabels: function(chart) {
+                                        return [
+                                            {
+                                                text: 'Daily Range: Green = Positive Day, Red = Negative Day',
+                                                fillStyle: 'rgba(34, 197, 94, 0.8)',
+                                                strokeStyle: 'rgb(34, 197, 94)',
+                                                lineWidth: 2
+                                            },
+                                            {
+                                                text: 'Sets: Green = Win, Red = Loss',
+                                                fillStyle: 'rgba(34, 197, 94, 0.9)',
+                                                strokeStyle: 'rgb(34, 197, 94)',
+                                                lineWidth: 2,
+                                                pointStyle: 'circle'
+                                            }
+                                        ];
+                                    }
+                                }
+                            },
                             tooltip: {
                                 callbacks: {
                                     label: function(context) {
-                                        if (context.datasetIndex === 1) { // Scatter (individual sets)
+                                        if (context.datasetIndex === 1) { // Individual sets
                                             const details = context.raw.details;
                                             let tooltip = `ELO: ${details.elo} (${details.elo_change > 0 ? '+' : ''}${details.elo_change})`;
                                             tooltip += `\nResult: ${details.result} vs ${details.opponent}`;
@@ -107,9 +148,17 @@
                                             }
                                             tooltip += `\nSets: ${details.sets}`;
                                             return tooltip;
-                                        } else { // Line (daily close)
-                                            return `Daily Close ELO: ${context.raw.y}`;
+                                        } else if (context.datasetIndex === 0) { // Candlestick bars
+                                            const ohlc = context.raw.ohlc;
+                                            return [
+                                                `Daily ELO Summary:`,
+                                                `Open: ${Math.round(ohlc.o)}`,
+                                                `High: ${Math.round(ohlc.h)}`,
+                                                `Low: ${Math.round(ohlc.l)}`,
+                                                `Close: ${Math.round(ohlc.c)}`
+                                            ];
                                         }
+                                        return '';
                                     }
                                 }
                             }
@@ -118,7 +167,7 @@
                             const points = chart.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
                             if (points.length) {
                                 const firstPoint = points[0];
-                                if (firstPoint.datasetIndex === 1) { // Scatter plot
+                                if (firstPoint.datasetIndex === 1) { // Individual sets
                                     const dataPoint = chart.data.datasets[1].data[firstPoint.index];
                                     if (dataPoint.details.issue_number) {
                                         window.open(`https://github.com/your-org/your-repo/issues/${dataPoint.details.issue_number}`, '_blank');
