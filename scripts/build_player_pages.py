@@ -237,6 +237,9 @@ def generate_player_pages(output_dir):
                     ohlc: d // Store full OHLC data
                 }}));
 
+                // Create closing price line data
+                const closingLine = candlestickData.map(d => ({{ x: d.x, y: d.c }}));
+
                 chart = new Chart(ctx, {{
                     type: 'bar',
                     data: {{
@@ -254,6 +257,19 @@ def generate_player_pages(output_dir):
                                     return ohlc.c >= ohlc.o ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)';
                                 }},
                                 borderWidth: 2,
+                                order: 3
+                            }},
+                            {{
+                                label: 'ELO Trend',
+                                type: 'line',
+                                data: closingLine,
+                                borderColor: 'rgb(59, 130, 246)',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                borderWidth: 3,
+                                tension: 0.1,
+                                fill: false,
+                                pointRadius: 0,
+                                pointHoverRadius: 4,
                                 order: 2
                             }},
                             {{
@@ -305,6 +321,12 @@ def generate_player_pages(output_dir):
                                                 lineWidth: 2
                                             }},
                                             {{
+                                                text: 'ELO Trend (Day-End)',
+                                                fillStyle: 'rgba(59, 130, 246, 0.1)',
+                                                strokeStyle: 'rgb(59, 130, 246)',
+                                                lineWidth: 3
+                                            }},
+                                            {{
                                                 text: 'Sets: Green = Win, Red = Loss',
                                                 fillStyle: 'rgba(34, 197, 94, 0.9)',
                                                 strokeStyle: 'rgb(34, 197, 94)',
@@ -318,7 +340,7 @@ def generate_player_pages(output_dir):
                             tooltip: {{
                                 callbacks: {{
                                     label: function(context) {{
-                                        if (context.datasetIndex === 1) {{ // Individual sets
+                                        if (context.datasetIndex === 2) {{ // Individual sets
                                             const details = context.raw.details;
                                             let tooltip = `ELO: ${{details.elo}} (${{details.elo_change > 0 ? '+' : ''}}${{details.elo_change}})`;
                                             tooltip += `\\nResult: ${{details.result}} vs ${{details.opponent}}`;
@@ -336,6 +358,8 @@ def generate_player_pages(output_dir):
                                                 `Low: ${{Math.round(ohlc.l)}}`,
                                                 `Close: ${{Math.round(ohlc.c)}}`
                                             ];
+                                        }} else if (context.datasetIndex === 1) {{ // Trend line
+                                            return `Day-End ELO: ${{Math.round(context.raw.y)}}`;
                                         }}
                                         return '';
                                     }}
@@ -346,8 +370,8 @@ def generate_player_pages(output_dir):
                             const points = chart.getElementsAtEventForMode(e, 'nearest', {{ intersect: true }}, true);
                             if (points.length) {{
                                 const firstPoint = points[0];
-                                if (firstPoint.datasetIndex === 1) {{ // Individual sets
-                                    const dataPoint = chart.data.datasets[1].data[firstPoint.index];
+                                if (firstPoint.datasetIndex === 2) {{ // Individual sets
+                                    const dataPoint = chart.data.datasets[2].data[firstPoint.index];
                                     if (dataPoint.details.issue_number) {{
                                         window.open(`{repo_url}/issues/${{dataPoint.details.issue_number}}`, '_blank');
                                     }}
