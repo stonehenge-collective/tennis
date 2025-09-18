@@ -2,7 +2,7 @@ import json
 import os
 import sys
 import time
-from typing import Iterable
+from collections.abc import Iterable
 
 import requests
 
@@ -233,3 +233,8 @@ def request_reviewers(
     resp = gh_post(url, {"reviewers": reviewers_list}, token)
     if resp.status_code not in (200, 201):
         print(f"Warn: failed to request reviewers: {resp.status_code} {resp.text}")
+
+
+if __name__ == "__main__":
+    import yaml
+    print(yaml)
