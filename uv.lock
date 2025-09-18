@@ -250,19 +250,25 @@ source = { virtual = "." }
 dependencies = [
     { name = "numpy" },
     { name = "pandas" },
-    { name = "pandas-stubs" },
     { name = "pyyaml" },
     { name = "requests" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pandas-stubs" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "numpy", specifier = ">=2.3.3" },
     { name = "pandas", specifier = ">=2.3.2" },
-    { name = "pandas-stubs", specifier = ">=2.3.2.250827" },
     { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "requests", specifier = ">=2.32.5" },
 ]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pandas-stubs", specifier = ">=2.3.2.250827" }]
 
 [[package]]
 name = "types-pytz"
