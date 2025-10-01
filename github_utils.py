@@ -202,14 +202,6 @@ def list_issue_comments(owner: str, repo: str, issue_number: int, token: str | N
     return gh_get_paginated(url, token)
 
 
-def list_issues(owner: str, repo: str, labels: str | None = None, token: str | None = None) -> list[dict]:
-    """List issues, optionally filtering by a comma-separated string of labels."""
-    url = f"{GITHUB_API}/repos/{owner}/{repo}/issues"
-    if labels:
-        url += f"?labels={labels}"
-    return gh_get_paginated(url, token)
-
-
 def comment_once(
     owner: str,
     repo: str,
