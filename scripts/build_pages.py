@@ -162,6 +162,7 @@ def generate_doubles_individual_table(df: pd.DataFrame):
 def build_site():
     from scripts.build_history import build_history_page
     from scripts.build_player_pages import build_player_pages
+    from scripts.build_schedule import build_schedule_page
 
     # Create a single temporary directory for all pages
     temp_dir = tempfile.mkdtemp(prefix="tennis_site_")
@@ -286,7 +287,7 @@ def build_site():
 
             <div class="footer">
                 <p>Last updated: {timestamp}</p>
-                <p><a href="history.html">Match History</a> | <a href="{repo_url}">GitHub Repository</a></p>
+                <p><a href="schedule.html">Schedule</a> | <a href="history.html">Match History</a> | <a href="{repo_url}">GitHub Repository</a></p>
             </div>
         </div>
     </body>
@@ -299,6 +300,9 @@ def build_site():
 
     # --- Build Match History Page (history.html) ---
     build_history_page(output_dir=temp_dir)
+
+    # --- Build Schedule Page (schedule.html) ---
+    build_schedule_page(output_dir=temp_dir)
 
     # --- Build Player Pages ---
     build_player_pages(output_dir=temp_dir)
