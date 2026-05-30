@@ -9,6 +9,7 @@ import pytest
 
 import scripts.generate_doubles_ranking as doubles
 import scripts.generate_singles_ranking as singles
+from scripts.build_history import load_matches_from_directory
 from scripts.elo_utils import normalize_player
 from scripts.parse_doubles_issue import parse_issue_body as parse_doubles
 from scripts.parse_singles_issue import parse_issue_body as parse_singles
@@ -94,3 +95,21 @@ def test_doubles_mixed_casing_aggregates_to_one_team_and_player():
     assert "alice, bob" in doubles.team_ratings
     assert doubles.team_stats["alice, bob"]["set_wins"] == 2
     assert doubles.individual_stats["alice"]["set_wins"] == 2
+
+
+# --- match history page links match the (lowercase) profile pages ----------
+
+
+def test_history_profile_links_are_normalized(tmp_path):
+    # A match recorded with a capital handle must link to the lowercase
+    # profile page that build_player_pages actually generates.
+    (tmp_path / "2026-01-01-1.yml").write_text(
+        "date: '2026-01-01'\n"
+        "players:\n- HunterJSB\n- Johnor12\n"
+        "sets:\n- - 6\n  - 3\nsource_issue: 1\n"
+    )
+    matches = load_matches_from_directory(str(tmp_path), "singles", {})
+    display = matches[0]["players_display"]
+    assert "player_profile_hunterjsb.html" in display
+    assert "player_profile_johnor12.html" in display
+    assert "Johnor12" not in display and "HunterJSB" not in display
