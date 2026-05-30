@@ -14,8 +14,8 @@ dependencies = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "pandas-stubs>=2.3.2.250827",
     "pytest>=9.0.3",
 ]
