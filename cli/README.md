@@ -11,17 +11,21 @@ go build -o tennis
 
 ## Configuration
 
-The CLI requires a GitHub token to interact with the repository. You can provide it in several ways:
+The CLI requires a GitHub token to interact with the repository. It is resolved in this order:
 
-1. Environment variable: `GITHUB_TOKEN=your_token_here`
-2. Environment variable: `GH_TOKEN=your_token_here`  
-3. Command line flag: `--token your_token_here`
+1. Command line flag: `--token your_token_here`
+2. Environment variable: `GITHUB_TOKEN=your_token_here`
+3. Environment variable: `GH_TOKEN=your_token_here`
+4. The `gh` CLI's stored token (via `gh auth token`), if `gh` is installed and authenticated
 
-The repository owner/name can be set via:
+So if you're already logged in with `gh auth login`, no token setup is needed.
 
-1. Environment variable: `GITHUB_REPOSITORY=owner/repo`
-2. Command line flags: `--owner owner --repo repo`
-3. Defaults to `stonehenge-collective/tennis`
+The repository owner/name is resolved in this order:
+
+1. Command line flags: `--owner owner --repo repo`
+2. Environment variable: `GITHUB_REPOSITORY=owner/repo`
+3. The `origin` remote of the current git checkout (https or ssh URLs)
+4. Defaults to `stonehenge-collective/tennis`
 
 ## Usage
 
@@ -94,6 +98,23 @@ export GITHUB_REPOSITORY=stonehenge-collective/tennis
 
 # Use specific date
 ./tennis match singles -p "@player_one,@player_two" -s "6-2,6-1" -d "2025-01-15"
+```
+
+### Flags for match commands
+
+Both `match singles` and `match doubles` support:
+
+- `--dry-run` — print the issue that would be created, without creating it (no token required)
+- `--no-validate` — skip the check that each player handle is a real GitHub user
+
+Before creating an issue, the CLI:
+
+- verifies every `@handle` resolves to a real GitHub user (skip with `--no-validate`). Note this only checks that the account exists, not that they're a registered league player.
+- (singles) checks the first-listed player actually won more sets, to catch swapped arguments
+
+```bash
+# Preview without creating anything
+./tennis match singles -p "@player_one,@player_two" -s "6-3,6-2" --dry-run
 ```
 
 ## Notes

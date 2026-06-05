@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
+	"strings"
 
 	"github.com/google/go-github/v67/github"
 	"github.com/spf13/cobra"
@@ -29,14 +31,19 @@ var rootCmd = &cobra.Command{
 			return nil
 		}
 
-		// Get token from environment if not provided
+		// Get token from environment if not provided. A dry run never
+		// contacts GitHub, so a token isn't required for it.
 		if token == "" {
 			token = os.Getenv("GITHUB_TOKEN")
 			if token == "" {
 				token = os.Getenv("GH_TOKEN")
 			}
+			// Fall back to the gh CLI's stored token if available
 			if token == "" {
-				return fmt.Errorf("GitHub token required. Set GITHUB_TOKEN environment variable or use --token flag")
+				token = ghAuthToken()
+			}
+			if token == "" && !dryRun {
+				return fmt.Errorf("GitHub token required. Set GITHUB_TOKEN, run `gh auth login`, or use --token flag")
 			}
 		}
 
@@ -52,7 +59,20 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
-		// Default fallback
+		// Fall back to the current checkout's git remote so the CLI
+		// targets whatever repo you're working in without flags.
+		if owner == "" || repo == "" {
+			if o, r, ok := repoFromGitRemote(); ok {
+				if owner == "" {
+					owner = o
+				}
+				if repo == "" {
+					repo = r
+				}
+			}
+		}
+
+		// Final fallback
 		if owner == "" {
 			owner = "stonehenge-collective"
 		}
@@ -62,6 +82,51 @@ var rootCmd = &cobra.Command{
 
 		return nil
 	},
+}
+
+// ghAuthToken returns the token stored by the `gh` CLI, or "" if gh is
+// unavailable or not authenticated.
+func ghAuthToken() string {
+	path, err := exec.LookPath("gh")
+	if err != nil {
+		return ""
+	}
+	out, err := exec.Command(path, "auth", "token").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// repoFromGitRemote parses owner/repo from the origin remote of the current
+// git checkout. Handles both https and ssh remote URLs.
+func repoFromGitRemote() (owner, repo string, ok bool) {
+	path, err := exec.LookPath("git")
+	if err != nil {
+		return "", "", false
+	}
+	out, err := exec.Command(path, "remote", "get-url", "origin").Output()
+	if err != nil {
+		return "", "", false
+	}
+	url := strings.TrimSpace(string(out))
+	url = strings.TrimSuffix(url, ".git")
+
+	// git@github.com:owner/repo  ->  owner/repo
+	if i := strings.Index(url, ":"); strings.HasPrefix(url, "git@") && i != -1 {
+		url = url[i+1:]
+	} else if i := strings.Index(url, "github.com/"); i != -1 {
+		// https://github.com/owner/repo
+		url = url[i+len("github.com/"):]
+	} else {
+		return "", "", false
+	}
+
+	parts := strings.Split(url, "/")
+	if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
+		return "", "", false
+	}
+	return parts[0], parts[1], true
 }
 
 func splitRepoString(repoString string) []string {
