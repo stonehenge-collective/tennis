@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -11,10 +12,21 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	dryRun     bool
+	noValidate bool
+)
+
 var matchCmd = &cobra.Command{
 	Use:   "match",
 	Short: "Create match issues",
 	Long:  "Create GitHub issues for recording tennis matches",
+}
+
+func printDryRun(title, body string, labels []string) {
+	fmt.Printf("[dry-run] would create issue in %s/%s\n", owner, repo)
+	fmt.Printf("Labels: %s\n", strings.Join(labels, ", "))
+	fmt.Printf("Title: %s\n\n%s\n", title, body)
 }
 
 var singlesMatchCmd = &cobra.Command{
@@ -62,6 +74,16 @@ If date is not provided, today's date will be used.`,
 		setsList, err := parseSets(sets)
 		if err != nil {
 			return fmt.Errorf("invalid sets format: %v", err)
+		}
+
+		// Warn if the first-listed player did not win more sets
+		if err := checkWinnerFirst(playerList[0], playerList[1], setsList); err != nil {
+			return err
+		}
+
+		// Verify the handles exist on GitHub (unless skipped)
+		if err := validateHandles(playerList); err != nil {
+			return err
 		}
 
 		// Create issue
@@ -125,6 +147,12 @@ If date is not provided, today's date will be used.`,
 			return fmt.Errorf("invalid sets format: %v", err)
 		}
 
+		// Verify the handles exist on GitHub (unless skipped)
+		allPlayers := append(append([]string{}, teamList[0]...), teamList[1]...)
+		if err := validateHandles(allPlayers); err != nil {
+			return err
+		}
+
 		// Create issue
 		return createDoublesIssue(teamList, setsList, date)
 	},
@@ -142,6 +170,10 @@ func isValidDate(date string) bool {
 }
 
 func parseSets(sets string) ([]string, error) {
+	if strings.TrimSpace(sets) == "" {
+		return nil, fmt.Errorf("at least one set is required")
+	}
+
 	setsList := strings.Split(sets, ",")
 	setRegex := regexp.MustCompile(`^\d+-\d+$`)
 
@@ -153,19 +185,56 @@ func parseSets(sets string) ([]string, error) {
 		setsList[i] = set
 	}
 
-	if len(setsList) == 0 {
-		return nil, fmt.Errorf("at least one set is required")
-	}
-
 	return setsList, nil
 }
 
-func createSinglesIssue(players []string, sets []string, date string) error {
+// checkWinnerFirst verifies the first-listed player won more sets than the
+// second, since the issue format requires the winner first. Ties are allowed
+// (e.g. an in-progress or split match) but a clear loser-first ordering is
+// rejected to catch swapped arguments before an issue is created.
+func checkWinnerFirst(player1, player2 string, sets []string) error {
+	var p1Wins, p2Wins int
+	for _, set := range sets {
+		parts := strings.SplitN(set, "-", 2)
+		g1, _ := strconv.Atoi(parts[0])
+		g2, _ := strconv.Atoi(parts[1])
+		switch {
+		case g1 > g2:
+			p1Wins++
+		case g2 > g1:
+			p2Wins++
+		}
+	}
+	if p2Wins > p1Wins {
+		return fmt.Errorf(
+			"%s won %d sets but is listed first as the winner (%s won %d) — list the winner first, or fix the scores",
+			player2, p2Wins, player1, p1Wins,
+		)
+	}
+	return nil
+}
+
+// validateHandles checks that each @handle resolves to a real GitHub user,
+// surfacing typos before an issue is created. Skipped when --no-validate is set.
+func validateHandles(handles []string) error {
+	if noValidate || dryRun {
+		return nil
+	}
 	ctx := context.Background()
 	client := getGitHubClient()
+	for _, h := range handles {
+		login := strings.TrimPrefix(strings.TrimSpace(h), "@")
+		if login == "" {
+			return fmt.Errorf("empty player handle")
+		}
+		if _, _, err := client.Users.Get(ctx, login); err != nil {
+			return fmt.Errorf("GitHub user '@%s' not found (use --no-validate to skip this check): %v", login, err)
+		}
+	}
+	return nil
+}
 
-	
-
+func createSinglesIssue(players []string, sets []string, date string) error {
 	title := fmt.Sprintf("Singles Match: %s vs %s (%s)", players[0], players[1], date)
 
 	body := fmt.Sprintf(`### Match date (YYYY-MM-DD)
@@ -183,6 +252,14 @@ func createSinglesIssue(players []string, sets []string, date string) error {
 		Labels: &[]string{"new-singles-match"},
 	}
 
+	if dryRun {
+		printDryRun(title, body, issueRequest.GetLabels())
+		return nil
+	}
+
+	ctx := context.Background()
+	client := getGitHubClient()
+
 	fmt.Printf("Creating singles match issue...\n")
 	fmt.Printf("Title: %s\n", title)
 
@@ -198,9 +275,6 @@ func createSinglesIssue(players []string, sets []string, date string) error {
 }
 
 func createDoublesIssue(teams [][]string, sets []string, date string) error {
-	ctx := context.Background()
-	client := getGitHubClient()
-
 	// Format teams for display
 	team1Str := fmt.Sprintf("%s, %s", teams[0][0], teams[0][1])
 	team2Str := fmt.Sprintf("%s, %s", teams[1][0], teams[1][1])
@@ -221,6 +295,14 @@ func createDoublesIssue(teams [][]string, sets []string, date string) error {
 		Body:   &body,
 		Labels: &[]string{"new-doubles-match"},
 	}
+
+	if dryRun {
+		printDryRun(title, body, issueRequest.GetLabels())
+		return nil
+	}
+
+	ctx := context.Background()
+	client := getGitHubClient()
 
 	fmt.Printf("Creating doubles match issue...\n")
 	fmt.Printf("Title: %s\n", title)
@@ -246,6 +328,10 @@ func init() {
 	doublesMatchCmd.Flags().StringP("teams", "t", "", "Teams separated by || : @player_one,@player_two||@player_three,@player_four")
 	doublesMatchCmd.Flags().StringP("sets", "s", "", "Sets separated by comma: 6-3,4-6,6-4")
 	doublesMatchCmd.Flags().StringP("date", "d", "", "Match date (YYYY-MM-DD), defaults to today")
+
+	// Shared flags for both match subcommands
+	matchCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Print the issue that would be created without creating it")
+	matchCmd.PersistentFlags().BoolVar(&noValidate, "no-validate", false, "Skip checking that player handles exist on GitHub")
 
 	matchCmd.AddCommand(singlesMatchCmd)
 	matchCmd.AddCommand(doublesMatchCmd)
